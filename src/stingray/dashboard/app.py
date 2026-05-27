@@ -2425,15 +2425,54 @@ def register_callbacks(app: dash.Dash) -> None:
                         },
                     )
                 )
+                
+            def image_block(title, label, href, key_suffix="img"):
+                if not href:
+                    return info_row(title, "N/A")
+
+                sep = "&" if "?" in href else "?"
+                img_src = f"{href}{sep}_cb={point_id}_{key_suffix}"
+
+                return html.Div(
+                    [
+                        html.Div(
+                            [
+                                html.Div(title, style={"fontWeight": "bold"}),
+                                html.A(label, href=href, target="_blank"),
+                            ],
+                            style={"marginBottom": "6px"},
+                        ),
+
+                        html.Img(
+                            src=img_src,
+                            key=f"img-{point_id}-{key_suffix}",
+                            style={
+                                "width": "100%",
+                                "maxWidth": "320px",
+                                "minHeight": "180px",
+                                "objectFit": "contain",
+                                "borderRadius": "6px",
+                                "border": "1px solid #ccc",
+                                "marginBottom": "12px",
+                                "backgroundColor": "#f5f5f5",
+                            },
+                        ),
+                    ],
+                    key=f"image-block-{point_id}-{key_suffix}",
+                )
+
             return html.Div(
                 [
-                    link_row("📽️ ISIIS 1:", media_1_label, media_1_link),
-                    link_row("📽️ ISIIS 2:", media_2_label, media_2_link),
+                    image_block("📽️ ISIIS 1:", media_1_label, media_1_link, "isiis1"),
+                    image_block("📽️ ISIIS 2:", media_2_label, media_2_link, "isiis2"),
+
                     info_row("⏳ Time:", format_time(row.get("times"))),
                     info_row("🌍 Latitude:", format_number(row.get("latitude"), "°")),
                     info_row("🌍 Longitude:", format_number(row.get("longitude"), "°")),
                     info_row("🌊 Depth:", format_number(row.get("depth"), " m")),
+
                     html.Hr(),
+
                     *variable_details,
                 ]
             )
