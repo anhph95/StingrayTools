@@ -10,25 +10,6 @@ This package includes sensor-processing utilities, CTD/profile handling, image-l
 
 ## Installation
 
-### Clone the repository
-
-```bash
-git clone https://github.com/anhph95/stingraytools.git
-cd StingrayTools
-```
-
-### Install with a Python virtual environment
-
-```bash
-sudo apt update
-sudo apt install python3-venv -y
-python3 -m venv venv
-source venv/bin/activate
-pip install -e .
-```
-
-### Install directly from Git
-
 Install the full StingrayTools distribution, including the sensor/image tools and dashboard:
 
 ```bash
@@ -51,17 +32,6 @@ For a Linux server image that runs only the dashboard with Gunicorn:
 
 ```bash
 pip install "stingray-dashboard[server] @ git+https://github.com/anhph95/StingrayTools.git#subdirectory=packages/stingray-dashboard"
-```
-
-### Or install with Conda
-
-```bash
-wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
-bash Miniconda3-latest-Linux-x86_64.sh
-source ~/.bashrc
-conda env create -f environment.yml
-conda activate stingray
-pip install -e .
 ```
 
 ---
@@ -380,27 +350,7 @@ docker compose up --build
 
 ---
 
-## Development notes
-
-Install in editable mode during development:
-
-```bash
-pip install -e .
-```
-
-Install only the dashboard in editable mode:
-
-```bash
-pip install -e packages/stingray-dashboard
-```
-
-Install only CTD tools in editable mode:
-
-```bash
-pip install -e packages/ctdtools
-```
-
-Useful checks:
+## Command checks
 
 ```bash
 stingray --help
