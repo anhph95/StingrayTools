@@ -3,7 +3,7 @@ services:
     build:
       context: .
       args:
-        STINGRAYTOOLS_REF: dev
+        STINGRAYTOOLS_REF: main
         STINGRAYTOOLS_REPO: https://github.com/anhph95/stingraytools.git
     container_name: stingray-dashboard
 

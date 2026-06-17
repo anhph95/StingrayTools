@@ -5,7 +5,7 @@ WORKDIR /app
 ENV PYTHONUNBUFFERED=1
 ENV PIP_NO_CACHE_DIR=1
 
-ARG STINGRAYTOOLS_REF=dev
+ARG STINGRAYTOOLS_REF=main
 ARG STINGRAYTOOLS_REPO=https://github.com/anhph95/stingraytools.git
 
 RUN apt-get update && \
