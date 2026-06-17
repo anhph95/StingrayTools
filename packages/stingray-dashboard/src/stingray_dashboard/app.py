@@ -47,6 +47,12 @@ meta_vars = [
 
 stations: pd.DataFrame | None = None
 bathy: pd.DataFrame | None = None
+
+DEFAULT_DATASET = "stingray_NESLTER"
+def choose_default_dataset(datasets):
+    if not datasets:
+        return None
+    return DEFAULT_DATASET if DEFAULT_DATASET in datasets else datasets[-1]
     
 # ============================================
 # Units
@@ -460,7 +466,7 @@ def get_point_id_from_customdata(customdata):
 # ========================
 def make_layout() -> html.Div:
     datasets = scan_datasets()
-    selected_dataset = datasets[-1] if datasets else None
+    selected_dataset = choose_default_dataset(datasets)
     csv_files = get_csv_files(selected_dataset) if selected_dataset else []
     df = load_data(selected_dataset, csv_files[-1]) if csv_files else pd.DataFrame()
     sensor_vars = [
@@ -807,7 +813,7 @@ def make_layout() -> html.Div:
 # Define which UI parameters should be mirrored in the URL
 URL_SYNCED_PARAMS = [
     # dataset / file
-    {"key": "dataset", "id": "dataset_selector", "default": None, "type": "string"},
+    {"key": "dataset", "id": "dataset_selector", "default": DEFAULT_DATASET, "type": "string"},
     {"key": "file", "id": "csv_selector", "default": None, "type": "string"},
     # cruise track
     {"key": "trackx", "id": "cruise_track_xaxis", "default": "times", "type": "string"},
@@ -941,7 +947,7 @@ def register_callbacks(app: dash.Dash) -> None:
     def restore_from_url(search):
         datasets = scan_datasets()
         params = parse_qs(urlparse(search or "").query)
-        dataset_default = datasets[-1] if datasets else None
+        dataset_default = choose_default_dataset(datasets)
         dataset_val = params.get("dataset", [dataset_default])[0]
         if dataset_val not in datasets:
             dataset_val = dataset_default
@@ -986,9 +992,13 @@ def register_callbacks(app: dash.Dash) -> None:
             return [], None
         if current_value in ds:
             return options, current_value
-        # do not aggressively replace selection unless nothing is selected
         if current_value is None:
-            return options, ds[-1]
+            default_ds = (
+                DEFAULT_DATASET
+                if DEFAULT_DATASET in ds
+                else ds[-1]
+            )
+            return options, default_ds
         return options, no_update
 
     # --- Callback: Refresh available CSV file list ---
@@ -2495,10 +2505,17 @@ def cli(argv: list[str] | None = None):
 
 def resolve_assets_dir() -> Path:
     """
-    Locate the Dash assets directory without assuming package depth.
+    Locate the packaged Dash assets directory.
+
+    Install invariant:
+      assets_dir = package_dir / "assets"
+
+    This keeps the dashboard static files coupled to the Python package, so a
+    Git or wheel install carries the code and visual assets together.  The
+    current working directory is only checked as a development fallback.
     """
     here = Path(__file__).resolve()
-    search_roots = [Path.cwd(), here.parent, *here.parents]
+    search_roots = [here.parent, Path.cwd()]
 
     for root in search_roots:
         candidate = root / "assets"

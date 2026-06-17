@@ -3,9 +3,9 @@ requires = ["setuptools>=64", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "stingraytools"
+name = "stingray-dashboard"
 version = "2.0.0"
-description = "NES-LTER Stingray data processing, visualization, and dashboard tools"
+description = "Installable Dash application for the NES-LTER Stingray dashboard"
 readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"
@@ -19,7 +19,6 @@ keywords = [
     "Stingray",
     "ISIIS",
     "oceanography",
-    "sensor-processing",
     "dashboard",
 ]
 classifiers = [
@@ -29,14 +28,9 @@ classifiers = [
 ]
 dependencies = [
     "dash>=3",
-    "matplotlib>=3.8",
-    "numba>=0.59",
     "numpy>=1.26",
     "pandas>=2.0",
     "plotly>=5",
-    "PyYAML>=6",
-    "scipy>=1.11",
-    "tqdm>=4.64",
 ]
 
 [project.urls]
@@ -45,60 +39,26 @@ Repository = "https://github.com/anhph95/StingrayTools"
 Issues = "https://github.com/anhph95/StingrayTools/issues"
 
 [project.scripts]
-stingray = "stingray.cli.main:main"
 stingray-dashboard = "stingray_dashboard.app:main"
 
 [project.optional-dependencies]
-dev = [
-    "jupyter>=1",
-    "ipykernel>=6.29",
-    "pytest>=8",
-]
-
 server = [
     "gunicorn>=21; platform_system != 'Windows'",
 ]
 
-shadowgraph = [
-    "opencv-python",
-    "tator",
-]
-
-all = [
-    "gunicorn>=21; platform_system != 'Windows'",
-    "ipykernel>=6.29",
-    "jupyter>=1",
-    "opencv-python",
+dev = [
     "pytest>=8",
-    "tator",
 ]
 
 [tool.setuptools]
+package-dir = {"" = "src"}
 include-package-data = true
-packages = [
-    "ctdtools",
-    "stingray",
-    "stingray.cli",
-    "stingray.config",
-    "stingray.images",
-    "stingray.io",
-    "stingray.logging",
-    "stingray.profiles",
-    "stingray.sensors",
-    "stingray.stats",
-    "stingray.utils",
-    "stingray_dashboard",
-]
 
-[tool.setuptools.package-dir]
-ctdtools = "packages/ctdtools/src/ctdtools"
-stingray = "packages/stingraytools/src/stingray"
-stingray_dashboard = "packages/stingray-dashboard/src/stingray_dashboard"
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["stingray_dashboard*"]
 
 [tool.setuptools.package-data]
-stingray = [
-    "data_reference/*",
-]
 stingray_dashboard = [
     "assets/*",
 ]

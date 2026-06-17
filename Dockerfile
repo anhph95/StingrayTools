@@ -5,13 +5,11 @@ WORKDIR /app
 ENV PYTHONUNBUFFERED=1
 ENV PIP_NO_CACHE_DIR=1
 
-COPY pyproject.toml README.md /app/
-COPY src/ /app/src/
-COPY assets/ /app/assets/
+COPY packages/stingray-dashboard/ /tmp/stingray-dashboard/
 
 RUN pip install --upgrade pip \
-    && pip install .
+    && pip install "/tmp/stingray-dashboard[server]"
 
 EXPOSE 8050
 
-CMD ["stingray", "dashboard", "run", "--host", "0.0.0.0", "--port", "8050", "--work-dir", "/dash_data"]
+CMD ["gunicorn", "--bind", "0.0.0.0:8050", "stingray_dashboard.app:application"]

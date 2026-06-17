@@ -23,7 +23,7 @@ def setup_logging(log_dir="logs", name="ctd_batch", level=logging.INFO):
     logger.addHandler(stream_handler)
     logger.propagate = False
     return logger
-def cli():
+def cli(argv: list[str] | None = None):
     p = argparse.ArgumentParser(
         description="Download NES-LTER CTD cruise data, merge missing lat/lon/date from metadata when needed, and save one CSV per cruise."
     )
@@ -33,7 +33,7 @@ def cli():
     p.add_argument("--only-cruise", nargs="*", default=None, help="Optional list of cruise names to process")
     p.add_argument("--log-dir", default="logs", help="Directory for log files")
     p.add_argument("--log-level", default="INFO", choices=["DEBUG", "INFO", "WARNING", "ERROR"])
-    return p.parse_args()
+    return p.parse_args(argv)
 def cruise_file_exists(out_dir: Path, cruise: str) -> bool:
     return any(out_dir.glob(f"*_{cruise}.csv"))
 def get_cast_list(cruise: str):
@@ -96,8 +96,8 @@ def get_date_from_df(df: pd.DataFrame) -> str:
     if dates.notna().any():
         return dates.min().strftime("%Y%m%d")
     return "nodate"
-def main():
-    args = cli()
+def main(argv: list[str] | None = None):
+    args = cli(argv)
     logger = setup_logging(
         log_dir=args.log_dir,
         name="nes_lter_ctd_batch",

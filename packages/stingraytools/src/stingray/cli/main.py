@@ -12,7 +12,7 @@ COMMANDS = {
     },
     ("dashboard", "run"): {
         "help": "Run Dash dashboard",
-        "target": "stingray.dashboard.app:main",
+        "target": "stingray_dashboard.app:main",
     },
     ("images", "abundance"): {
         "help": "Compute image abundance",
@@ -36,7 +36,7 @@ COMMANDS = {
     },
     ("ctd", "download"): {
         "help": "Download CTD cruise data",
-        "target": "ctd_tools.download:main",
+        "target": "ctdtools.download:main",
     },
 }
 

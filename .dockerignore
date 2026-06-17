@@ -1,78 +1,57 @@
 # ======================
-# Git
+# Docker build context: keep installable package files, skip runtime products.
 # ======================
+
+# Git
 .git
 .gitignore
 
-# ======================
 # Python cache / artifacts
-# ======================
 __pycache__/
-*.pyc
+*.py[cod]
 *.pyo
 *.pyd
 *.egg-info/
 build/
 dist/
 
-# ======================
 # Virtual environments
-# ======================
 .venv/
 venv/
 env/
 
-# ======================
 # Dev / IDE
-# ======================
 .vscode/
 .idea/
 .ipynb_checkpoints/
 *.ipynb
 
-# ======================
 # Logs / temp
-# ======================
 *.log
 *.tmp
 *.swp
 .cache/
+dash_uploads/
 .dash_uploads/
 
-# ======================
-# Large data (exclude from build)
-# ======================
-raw_data/
-merged_data/
+# Local data and generated products
+AR100/
+cruise_data/
+dash_data/data/
 indexes/
+logs/
 media_list/
+merged_data/
 modified_CAL/
 old_code/
-
-# ======================
-# CSV + binary outputs
-# ======================
+raw_data/
+suna_calibration/
+yolo_results/
 *.csv
+*.html
 *.mat
 *.CAL
 
-# ======================
-# KEEP runtime-required folders
-# ======================
-!dash_data/
-!dash_data/misc/
-!dash_data/misc/**
-
-!assets/
-!assets/**
-
-!src/
-!src/**
-
-# ======================
-# KEEP project config
-# ======================
-!pyproject.toml
-!README.md
-!Dockerfile
-!docker-compose.yml
+# Local secrets/config
+*.token
+ls_config.json

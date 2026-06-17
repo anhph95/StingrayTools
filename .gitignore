@@ -1,36 +1,40 @@
 # ======================
-# Ignore everything by default
+# Track package source and project metadata; ignore local runtime products.
 # ======================
 *
 
 # ======================
-# Allow directories we care about
+# Python package source
 # ======================
-!src/
-!assets/
-!dash_data/misc/
+!packages/
+!packages/**
 
-# Allow contents of those directories
-!src/**
-!assets/**
+# ======================
+# Dashboard runtime reference data
+# ======================
+!dash_data/
+!dash_data/misc/
 !dash_data/misc/**
 
 # ======================
-# Allow root project files
+# Project metadata
 # ======================
 !README.md
 !LICENSE
 !.gitignore
+!.gitattributes
+!.dockerignore
 !pyproject.toml
+!requirements.txt
+!environment.yml
 !Dockerfile
 !docker-compose.yml
-!.dockerignore
 
 # ======================
-# Python artifacts (still useful inside allowed dirs)
+# Python build/cache artifacts
 # ======================
 __pycache__/
-*.pyc
+*.py[cod]
 *.pyo
 *.pyd
 *.pkl
@@ -46,10 +50,38 @@ venv/
 env/
 
 # ======================
-# Notebooks
+# Analysis notebooks and generated products
 # ======================
 *.ipynb
 .ipynb_checkpoints/
+*.csv
+*.html
+
+# Keep small dashboard reference tables even though generated CSVs are ignored.
+!dash_data/misc/
+!dash_data/misc/**
+
+# ======================
+# Runtime data, indexes, and model outputs
+# ======================
+AR100/
+cruise_data/
+dash_data/data/
+indexes/
+logs/
+media_list/
+merged_data/
+modified_CAL/
+old_code/
+raw_data/
+suna_calibration/
+yolo_results/
+
+# ======================
+# Secrets and local service config
+# ======================
+*.token
+ls_config.json
 
 # ======================
 # Logs / cache
@@ -57,6 +89,7 @@ env/
 *.log
 .cache/
 dash_uploads/
+.dash_uploads/
 
 # ======================
 # OS / IDE

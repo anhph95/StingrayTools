@@ -9,16 +9,14 @@ services:
 
     volumes:
       - ./dash_data:/dash_data
-      - ./assets:/app/assets:ro
 
     environment:
       DASH_DEBUG: "1"
       PYTHONUNBUFFERED: "1"
 
     command: >
-      stingray dashboard run
-      --host 0.0.0.0
-      --port 8050
-      --work-dir /dash_data
+      gunicorn
+      --bind 0.0.0.0:8050
+      stingray_dashboard.app:application
 
     restart: unless-stopped

@@ -27,6 +27,32 @@ source venv/bin/activate
 pip install -e .
 ```
 
+### Install directly from Git
+
+Install the full StingrayTools distribution, including the sensor/image tools and dashboard:
+
+```bash
+pip install "git+https://github.com/anhph95/StingrayTools.git"
+```
+
+Install only the dashboard distribution:
+
+```bash
+pip install "stingray-dashboard @ git+https://github.com/anhph95/StingrayTools.git#subdirectory=packages/stingray-dashboard"
+```
+
+Install only the CTD tools distribution:
+
+```bash
+pip install "ctdtools @ git+https://github.com/anhph95/StingrayTools.git#subdirectory=packages/ctdtools"
+```
+
+For a Linux server image that runs only the dashboard with Gunicorn:
+
+```bash
+pip install "stingray-dashboard[server] @ git+https://github.com/anhph95/StingrayTools.git#subdirectory=packages/stingray-dashboard"
+```
+
 ### Or install with Conda
 
 ```bash
@@ -45,7 +71,7 @@ pip install -e .
 ### Process Stingray sensor data
 
 ```bash
-python -m stingray sensors merge \
+stingray sensors merge \
   --cruise EN706 \
   --start YYYY-MM-DD \
   --end YYYY-MM-DD \
@@ -105,11 +131,19 @@ stingray.images.generate_training
 
 Use the relevant module directly or import functions from Python scripts and notebooks as needed.
 
+### CTD-only command
+
+When installing only `ctdtools`, use:
+
+```bash
+ctd-download --help
+```
+
 ---
 
 ## Dashboard usage
 
-The dashboard reads data from the configured `dash_data/` directory. Expected local structure:
+The dashboard is packaged as `stingray_dashboard`. It is included in the full `stingraytools` install and can also be installed by itself from `packages/stingray-dashboard`. It reads data from the configured `dash_data/` directory. Expected local structure:
 
 ```text
 dash_data/
@@ -124,7 +158,13 @@ dash_data/
 ### Run the dashboard locally
 
 ```bash
-python -m stingray dashboard run --host 0.0.0.0 --port 8050
+stingray dashboard run --host 0.0.0.0 --port 8050
+```
+
+or:
+
+```bash
+stingray-dashboard --host 0.0.0.0 --port 8050
 ```
 
 Then open:
@@ -145,6 +185,27 @@ The dashboard can then be accessed at:
 
 ```text
 https://stingraydash.whoi.edu/
+```
+
+### Deploy the packaged dashboard with Gunicorn
+
+The installable WSGI target is:
+
+```text
+stingray_dashboard.app:application
+```
+
+Example command:
+
+```bash
+gunicorn --bind 0.0.0.0:8050 stingray_dashboard.app:application
+```
+
+For the production Docker layout, the dashboard code can be installed from Git and the only required runtime mount is the data directory:
+
+```yaml
+volumes:
+  - /srv/vast/nes-lter/Stingray/data/dashboard_data:/dash_data:ro
 ```
 
 ---
@@ -205,11 +266,23 @@ Install in editable mode during development:
 pip install -e .
 ```
 
+Install only the dashboard in editable mode:
+
+```bash
+pip install -e packages/stingray-dashboard
+```
+
+Install only CTD tools in editable mode:
+
+```bash
+pip install -e packages/ctdtools
+```
+
 Useful checks:
 
 ```bash
-python -m stingray.process --help
-python -m stingray.dashboard.app --help
+stingray --help
+stingray-dashboard --help
 ```
 
 ## License

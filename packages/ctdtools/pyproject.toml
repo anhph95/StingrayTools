@@ -1,0 +1,50 @@
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ctdtools"
+version = "2.0.0"
+description = "NES-LTER CTD cruise data download tools"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+authors = [
+    { name = "Anh Pham" },
+    { name = "Sidney Batchelder" },
+    { name = "Heidi Sosik" },
+]
+keywords = [
+    "NES-LTER",
+    "CTD",
+    "oceanography",
+    "cruise-data",
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "pandas>=2.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/anhph95/StingrayTools"
+Repository = "https://github.com/anhph95/StingrayTools"
+Issues = "https://github.com/anhph95/StingrayTools/issues"
+
+[project.scripts]
+ctd-download = "ctdtools.download:main"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8",
+]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["ctdtools*"]
