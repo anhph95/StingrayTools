@@ -32,7 +32,8 @@ def merge_sensors(
     cal_year: str = "2021",
     time_bin_seconds: float = 5.0,
     out_dir: str | Path = "dash_data/data/stingray/",
-    media_list_dirs: list[str] | None = None,
+    index_dir: str | Path = "indexes",
+    media_list_dirs: list[str | Path] | None = None,
     overwrite_index: bool = False,
     suna_cal_file: str | Path | None = None,
     suna_cal_dir: str | Path | None = None,
@@ -40,7 +41,7 @@ def merge_sensors(
     # Logging the function entry and parameters for better traceability.
     logger.info(
         "Merging sensors data | cruise=%s start=%s end=%s root=%s cal_year=%s "
-        "time_bin_seconds=%s out_dir=%s overwrite_index=%s "
+        "time_bin_seconds=%s out_dir=%s index_dir=%s overwrite_index=%s "
         "suna_cal_file=%s suna_cal_dir=%s media_dirs=%s",
         cruise,
         start,
@@ -49,6 +50,7 @@ def merge_sensors(
         cal_year,
         time_bin_seconds,
         out_dir,
+        index_dir,
         overwrite_index,
         suna_cal_file,
         suna_cal_dir,
@@ -62,8 +64,9 @@ def merge_sensors(
 
     root = Path(root)
     out_dir = Path(out_dir)
+    index_dir = Path(index_dir)
 
-    Path("indexes").mkdir(exist_ok=True)
+    index_dir.mkdir(parents=True, exist_ok=True)
     out_dir.mkdir(parents=True, exist_ok=True)
 
     # -------------------------
@@ -76,7 +79,7 @@ def merge_sensors(
     for name in sensor_names:
         idx = load_or_build_file_index(
             root / name,
-            Path("indexes") / f"{name}_index.csv",
+            index_dir / f"{name}_index.csv",
             overwrite=overwrite_index,
         )
 

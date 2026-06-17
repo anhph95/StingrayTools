@@ -1,38 +1,4 @@
-# ======================
-# Track package source and project metadata; ignore local runtime products.
-# ======================
-*
-
-# ======================
-# Python package source
-# ======================
-!packages/
-!packages/**
-
-# ======================
-# Dashboard runtime reference data
-# ======================
-!dash_data/
-!dash_data/misc/
-!dash_data/misc/**
-
-# ======================
-# Project metadata
-# ======================
-!README.md
-!LICENSE
-!.gitignore
-!.gitattributes
-!.dockerignore
-!pyproject.toml
-!requirements.txt
-!environment.yml
-!Dockerfile
-!compose.yml
-
-# ======================
-# Python build/cache artifacts
-# ======================
+# Python build and cache artifacts
 __pycache__/
 *.py[cod]
 *.pyo
@@ -41,59 +7,44 @@ __pycache__/
 *.egg-info/
 build/
 dist/
+.cache/
+.pytest_cache/
+.mypy_cache/
 
-# ======================
 # Virtual environments
-# ======================
 .venv/
 venv/
 env/
 
-# ======================
-# Analysis notebooks and generated products
-# ======================
-*.ipynb
+# Local analysis products retained outside the source repository
+/*.ipynb
+/*.csv
+/*.html
 .ipynb_checkpoints/
-*.csv
-*.html
 
-# Keep small dashboard reference tables even though generated CSVs are ignored.
-!dash_data/misc/
-!dash_data/misc/**
+# Workspace runtime data, indexes, logs, and generated products
+/AR100/
+/cruise_data/
+/dash_data/data/
+/indexes/
+/logs/
+/media_list/
+/merged_data/
+/modified_CAL/
+/old_code/
+/raw_data/
+/sensor_data/
+/suna_calibration/
+/yolo_results/
+/dash_uploads/
+/.dash_uploads/
 
-# ======================
-# Runtime data, indexes, and model outputs
-# ======================
-AR100/
-cruise_data/
-dash_data/data/
-indexes/
-logs/
-media_list/
-merged_data/
-modified_CAL/
-old_code/
-raw_data/
-suna_calibration/
-yolo_results/
-
-# ======================
-# Secrets and local service config
-# ======================
+# Local secrets and service configuration
 *.token
-ls_config.json
-
-# ======================
-# Logs / cache
-# ======================
+/ls_config.json
 *.log
-.cache/
-dash_uploads/
-.dash_uploads/
 
-# ======================
-# OS / IDE
-# ======================
+# Editors and operating-system metadata
 .vscode/
 .idea/
 .DS_Store

@@ -70,13 +70,47 @@ pip install -e .
 
 ### Process Stingray sensor data
 
+Install the package directly from Git, then run it from any workspace containing
+your data. The source repository does not need to be cloned:
+
+```bash
+pip install "git+https://github.com/anhph95/StingrayTools.git"
+
+mkdir stingray_workspace
+cd stingray_workspace
+```
+
+The default workspace layout is:
+
+```text
+stingray_workspace/
+  sensor_data/          raw CTD, DVL, fluorometer, GPS, oxygen, PAR, and SUNA folders
+  media_list/           optional ISIIS1 and ISIIS2 frame metadata
+  suna_calibration/     optional cruise-specific SUNA calibration files
+  indexes/              generated sensor-file indexes
+  logs/                 processing logs
+  dash_data/data/       dashboard-ready output
+```
+
+Dashboard station and bathymetry reference tables are installed with the
+package. To override them for a workspace, place replacements in
+`dash_data/misc/`.
+
+#### One-cruise example
+
+The following command processes cruise `EN706` from August 7 through
+August 14, 2023. Both `--start` and `--end` are inclusive calendar dates.
+Sensor observations are aggregated into bins of width
+\(\Delta t = 5\) seconds.
+
 ```bash
 stingray sensors merge \
+  --work-dir . \
   --cruise EN706 \
-  --start YYYY-MM-DD \
-  --end YYYY-MM-DD \
-  --root sensor_data \
-  --out-dir dash_data/data/stingray_timebinned
+  --start 2023-08-07 \
+  --end 2023-08-14 \
+  --cal-year 2021 \
+  --time-bin-seconds 5
 ```
 
 Common options:
@@ -91,8 +125,11 @@ Common options:
 --end END
     Cruise end date in YYYY-MM-DD format.
 
+--work-dir WORK_DIR
+    Workspace containing runtime inputs and outputs. Default: current directory.
+
 --root ROOT
-    Path to the raw sensor-data directory. Default: sensor_data.
+    Raw sensor-data directory. Default: WORK_DIR/sensor_data.
 
 --cal-year CAL_YEAR
     Sensor calibration year. Default: 2021.
@@ -101,10 +138,20 @@ Common options:
     Time-bin size in seconds. Default: 5.
 
 --out-dir OUT_DIR
-    Output directory for dashboard-ready CSV files.
+    Output directory. Default: WORK_DIR/dash_data/data/stingray.
+
+--index-dir INDEX_DIR
+    Generated sensor-file index directory. Default: WORK_DIR/indexes.
 
 --media-list-dirs MEDIA_LIST_DIRS ...
-    Media-list directories for ISIIS image links.
+    Media-list directories for ISIIS image links. Defaults to the ISIIS1 and
+    ISIIS2 directories below WORK_DIR/media_list.
+
+--suna-cal-file SUNA_CAL_FILE
+    Optional SUNA calibration file for TSP-corrected nitrate.
+
+--suna-cal-dir SUNA_CAL_DIR
+    Optional directory containing cruise-specific SUNA calibration files.
 
 --overwrite-index
     Rebuild cached sensor-file indexes.
@@ -112,6 +159,77 @@ Common options:
 --log-level {DEBUG,INFO,WARNING,ERROR}
     Logging level. Default: INFO.
 ```
+
+#### Batch-process cruises from NES-LTER metadata
+
+The following example is adapted from `data_process_all.ipynb`. It retrieves
+the NES-LTER cruise table, normalizes the date fields, selects cruises beginning
+on or after January 1, 2023, and runs the same sensor merge for each cruise.
+When an end date is unavailable, the example assumes a seven-day cruise.
+
+```python
+import subprocess
+from datetime import timedelta
+
+import pandas as pd
+
+
+# Load the NES-LTER cruise metadata table.
+cruises = pd.read_csv(
+    "https://nes-lter-api.whoi.edu/api/ctd/cruises/get/all"
+)
+
+# Convert API date strings to timezone-naive timestamps for comparison.
+cruises["start_time"] = pd.to_datetime(
+    cruises["start_time"],
+    errors="coerce",
+).dt.tz_localize(None)
+cruises["end_time"] = pd.to_datetime(
+    cruises["end_time"],
+    errors="coerce",
+).dt.tz_localize(None)
+
+# Keep valid cruises in chronological order, beginning with 2023.
+cruises = cruises.dropna(subset=["start_time"]).sort_values("start_time")
+cruises = cruises[cruises["start_time"] >= "2023-01-01"].copy()
+cruises["name"] = cruises["name"].str.upper()
+
+# Estimate a seven-day interval when the API has no cruise end date.
+cruises["end_time"] = cruises["end_time"].fillna(
+    cruises["start_time"] + timedelta(days=7)
+)
+
+for cruise in cruises.itertuples():
+    start = cruise.start_time.strftime("%Y-%m-%d")
+    end = cruise.end_time.strftime("%Y-%m-%d")
+
+    # Each output row represents a time bin of width Delta t = 5 seconds.
+    command = [
+        "stingray",
+        "sensors",
+        "merge",
+        "--work-dir",
+        ".",
+        "--cruise",
+        cruise.name,
+        "--start",
+        start,
+        "--end",
+        end,
+        "--cal-year",
+        "2021",
+        "--time-bin-seconds",
+        "5",
+    ]
+
+    print(f"Processing {cruise.name}: {start} through {end}")
+    subprocess.run(command, check=True)
+```
+
+`subprocess.run(..., check=True)` stops the batch when a cruise fails, making
+the failed cruise visible instead of silently continuing with incomplete data.
+Add `--overwrite-index` to the command list when the cached sensor-file indexes
+must be rebuilt.
 
 ### Sensor and image utilities
 

@@ -101,4 +101,5 @@ stingray = [
 ]
 stingray_dashboard = [
     "assets/*",
+    "data_reference/*",
 ]
