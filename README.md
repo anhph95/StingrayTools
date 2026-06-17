@@ -143,28 +143,24 @@ ctd-download --help
 
 ## Dashboard usage
 
-The dashboard is packaged as `stingray_dashboard`. It is included in the full `stingraytools` install and can also be installed by itself from `packages/stingray-dashboard`. It reads data from the configured `dash_data/` directory. Expected local structure:
+The dashboard is packaged as `stingray-dashboard`. It can be installed by itself from `packages/stingray-dashboard` or as part of this repository. It reads data from a configured work directory. By default it uses `/dash_data` when that directory exists, otherwise `./dash_data`.
+
+Expected local structure:
 
 ```text
 dash_data/
-├── data/
-│   └── <dataset_name>/
-│       └── *.csv
-└── misc/
-    ├── NESLTER_station_list.csv
-    └── NESLTER_transect_bathymetry.csv
+  data/
+    <dataset_name>/
+      *.csv
+  misc/
+    NESLTER_station_list.csv
+    NESLTER_transect_bathymetry.csv
 ```
 
 ### Run the dashboard locally
 
 ```bash
-stingray dashboard run --host 0.0.0.0 --port 8050
-```
-
-or:
-
-```bash
-stingray-dashboard --host 0.0.0.0 --port 8050
+stingray-dashboard --work-dir dash_data --host 0.0.0.0 --port 8050
 ```
 
 Then open:
@@ -172,6 +168,15 @@ Then open:
 ```text
 http://localhost:8050
 ```
+
+Dashboard controls:
+
+- Use the top row to select dataset, CSV file, sampling mode, point size, opacity, font size, and refresh the file list.
+- Each plot has its own option panel beside it.
+- Plot dimensions are controlled by width and height inputs in each plot option panel.
+- The URL query string stores the current dashboard state for reproducible views.
+- Cruise-track selections filter the main transect, T-S, and profile plots.
+- Main plot selections synchronize with the T-S and profile plots.
 
 ### Use the WHOI-hosted dashboard
 
@@ -209,7 +214,6 @@ volumes:
 ```
 
 ---
-
 ## Docker usage
 
 The dashboard can also be run with Docker Compose.
