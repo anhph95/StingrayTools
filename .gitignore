@@ -28,7 +28,7 @@
 !requirements.txt
 !environment.yml
 !Dockerfile
-!docker-compose.yml
+!compose.yml
 
 # ======================
 # Python build/cache artifacts
