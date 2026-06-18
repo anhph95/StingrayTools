@@ -245,6 +245,25 @@ dash_data/
     NESLTER_transect_bathymetry.csv
 ```
 
+For example, a local EN706 dataset can be placed at:
+
+```text
+dash_data/data/stingray/20230807_EN706.csv
+```
+
+The dashboard works best when each CSV contains:
+
+- `times`, `latitude`, `longitude`, and `depth` for navigation and transect plots.
+- `temperature` and `salinity` for the T-S diagram and density contours.
+- `cast` for individual vertical profiles.
+- One or more numeric sensor variables such as `chlorophyll`, `nitrate`, `par`, or `oxygen_concentration`.
+- Optional `media` and `frame` columns for linked ISIIS imagery.
+
+Common source names such as `lat`, `lon`, `t090`, `sal00`, and `pressure`
+are normalized to the dashboard's canonical columns. Instrument altitude
+sentinel values equal to `9999.99` are treated as missing data so they do not
+distort plot ranges or averages.
+
 ### Run the dashboard locally
 
 ```bash
@@ -260,11 +279,35 @@ http://localhost:8050
 Dashboard controls:
 
 - Use the top row to select dataset, CSV file, sampling mode, point size, opacity, font size, and refresh the file list.
+- `Subsample` keeps every \(N\)-th observation and preserves the original point identifiers.
+- `Average bins` computes means within cast/deployment-aware groups of \(N\) observations. Short trailing bins are discarded rather than combined across casts or time gaps.
 - Each plot has its own option panel beside it.
 - Plot dimensions are controlled by width and height inputs in each plot option panel.
 - The URL query string stores the current dashboard state for reproducible views.
 - Cruise-track selections filter the main transect, T-S, and profile plots.
 - Main plot selections synchronize with the T-S and profile plots.
+- Cast coloring uses a continuous color scale to avoid creating one trace per cast.
+- Multi-cast profile plots use WebGL traces for smoother rendering.
+
+### Local development and tests
+
+Create and activate a project-local virtual environment:
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -e ".[dev]"
+```
+
+Run the dashboard regression tests:
+
+```bash
+pytest packages/stingray-dashboard/tests
+```
+
+Runtime datasets under `dash_data/` are intentionally excluded from version
+control. Keep large or institution-specific CSV files in the local work
+directory and commit only source code, packaged reference tables, and tests.
 
 ### Use the WHOI-hosted dashboard
 

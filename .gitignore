@@ -49,3 +49,9 @@ env/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Ignore all top-level directories by default.
+/*/
+
+# Keep repository source packages available for version control.
+!/packages/
