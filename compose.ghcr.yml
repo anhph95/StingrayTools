@@ -11,8 +11,8 @@ services:
     ports:
       - "${STINGRAY_DASHBOARD_PORT:-8050}:8050"
 
-    # Mount the user's dashboard workspace without allowing container writes.
-    # DASH_DATA_DIR must contain the data/ and misc/ directories.
+    # Mount the user's dashboard workspace as read-only input.
+    # Only data/ is required; misc/ may contain optional reference overrides.
     volumes:
       - ${DASH_DATA_DIR:-./dash_data}:/dash_data:ro
 
