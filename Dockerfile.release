@@ -1,0 +1,23 @@
+# Build the distributable dashboard image from the source checked out by CI,
+# Docker's Git build context, or a developer's local repository.
+FROM python:3.11-slim
+
+# Keep the installed application and its build input in one predictable location.
+WORKDIR /app
+
+# Stream logs immediately and avoid retaining pip's download cache in the image.
+ENV PYTHONUNBUFFERED=1
+ENV PIP_NO_CACHE_DIR=1
+
+# Copy only the independently installable dashboard package into the image.
+COPY packages/stingray-dashboard/ /app/
+
+# Install the dashboard and the optional Gunicorn production server dependency.
+RUN pip install --upgrade pip && \
+    pip install --no-cache-dir ".[server]"
+
+# Document the dashboard's internal HTTP port.
+EXPOSE 8050
+
+# Run the packaged WSGI application with a production HTTP server.
+CMD ["gunicorn", "--bind", "0.0.0.0:8050", "stingray_dashboard.app:application"]

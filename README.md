@@ -347,49 +347,182 @@ volumes:
 ---
 ## Docker usage
 
-The dashboard can also be run with Docker Compose.
+The dashboard supports three Docker workflows:
 
-### Start the dashboard
+1. Run the published image for a stable production deployment.
+2. Build the current GitHub source without cloning the repository.
+3. Use the legacy Git-installing Compose setup used by the existing WHOI server.
 
-```bash
-docker compose up --build
+In every workflow, the host workspace mounted at `/dash_data` must already
+contain these directories because the container receives a read-only mount:
+
+```text
+dashboard_data/
+  data/    dashboard dataset directories and CSV files
+  misc/    optional workspace-specific station and bathymetry tables
 ```
 
-This builds the image, mounts `dash_data/`, and serves the app at:
+Create the directories when preparing a new workspace:
+
+```bash
+mkdir -p dashboard_data/data dashboard_data/misc
+```
+
+Changing files below `dashboard_data/` does not require rebuilding the image.
+
+### Recommended: run the published image
+
+GitHub Actions builds `ghcr.io/anhph95/stingray-dashboard` from the repository
+source after every push to `main`. A Git tag such as `v2.1.0` also publishes
+the immutable `2.1.0` and `2.1` image tags. This separates application releases
+from institution-specific datasets.
+
+Run the rolling `latest` image with a workspace on the current host:
+
+```bash
+docker pull ghcr.io/anhph95/stingray-dashboard:latest
+
+docker run -d \
+  --name stingray-dashboard \
+  --restart unless-stopped \
+  -p 8050:8050 \
+  --mount "type=bind,source=/absolute/path/to/dashboard_data,target=/dash_data,readonly" \
+  ghcr.io/anhph95/stingray-dashboard:latest
+```
+
+Open the dashboard at:
 
 ```text
 http://localhost:8050
 ```
 
-### Stop the dashboard
+For reproducible production deployments, replace `latest` with a release such
+as `2.1.0`. The version remains fixed until the deployment configuration is
+changed explicitly.
+
+Stop and remove this container with:
 
 ```bash
-docker compose down
+docker rm -f stingray-dashboard
 ```
 
-### Run in detached mode
+### Recommended Compose deployment
+
+Download `compose.ghcr.yml`, then provide the absolute dataset path. The
+absolute path keeps behavior unambiguous regardless of the directory from
+which Compose is invoked.
 
 ```bash
-docker compose up -d
+curl -O https://raw.githubusercontent.com/anhph95/stingraytools/main/compose.ghcr.yml
+
+DASH_DATA_DIR=/absolute/path/to/dashboard_data \
+  docker compose -f compose.ghcr.yml up -d
 ```
 
-Stop it with:
+Update the application while preserving the mounted datasets:
 
 ```bash
-docker compose down
+DASH_DATA_DIR=/absolute/path/to/dashboard_data \
+  docker compose -f compose.ghcr.yml pull
+
+DASH_DATA_DIR=/absolute/path/to/dashboard_data \
+  docker compose -f compose.ghcr.yml up -d
 ```
 
-### Updating data
-
-If `dash_data/` is mounted as a bind volume, updating CSV files does not require rebuilding the Docker image.
-
-### Rebuilding after code changes
-
-Rebuild after modifying source code, dashboard code, assets, dependencies, or Docker configuration:
+Pin a release and optionally select another host port:
 
 ```bash
-docker compose up --build
+STINGRAY_DASHBOARD_IMAGE=ghcr.io/anhph95/stingray-dashboard:2.1.0 \
+STINGRAY_DASHBOARD_PORT=8051 \
+DASH_DATA_DIR=/absolute/path/to/dashboard_data \
+  docker compose -f compose.ghcr.yml up -d
 ```
+
+Stop the Compose deployment:
+
+```bash
+DASH_DATA_DIR=/absolute/path/to/dashboard_data \
+  docker compose -f compose.ghcr.yml down
+```
+
+### Build directly from GitHub
+
+This workflow is useful for testing the newest source before a published image
+is available. Docker downloads the repository and builds `Dockerfile.release`
+locally; no repository clone or Python installation is required.
+
+```bash
+docker build \
+  -f Dockerfile.release \
+  -t stingray-dashboard:git \
+  "https://github.com/anhph95/stingraytools.git#main"
+
+docker run -d \
+  --name stingray-dashboard \
+  --restart unless-stopped \
+  -p 8050:8050 \
+  --mount "type=bind,source=/absolute/path/to/dashboard_data,target=/dash_data,readonly" \
+  stingray-dashboard:git
+```
+
+Replace `main` with a branch, tag, or full commit hash to select a different
+source revision.
+
+### Build from a local checkout
+
+Developers can build the exact source currently checked out, including local
+changes that have not been pushed:
+
+```bash
+git clone https://github.com/anhph95/stingraytools.git
+cd stingraytools
+
+docker build -f Dockerfile.release -t stingray-dashboard:local .
+
+docker run -d \
+  --name stingray-dashboard \
+  --restart unless-stopped \
+  -p 8050:8050 \
+  --mount "type=bind,source=/absolute/path/to/dashboard_data,target=/dash_data,readonly" \
+  stingray-dashboard:local
+```
+
+Rebuild the local image after changing application source, assets,
+dependencies, or Docker configuration.
+
+### Existing WHOI server deployment
+
+The original `Dockerfile` and `compose.yml` remain unchanged for backward
+compatibility. They install the dashboard package from the configured Git
+repository and mount the server dataset at:
+
+```text
+/srv/vast/nes-lter/Stingray/data/dashboard_data
+```
+
+The current server can continue using:
+
+```bash
+docker compose up -d --build
+```
+
+This rebuild installs the configured `STINGRAYTOOLS_REF`, currently `main`.
+It does not use the GHCR image unless the server is deliberately migrated to
+`compose.ghcr.yml`.
+
+### Container release process
+
+Maintainers do not build or upload release images manually:
+
+1. Push to `main` to publish `latest` and a commit-specific `sha-*` tag.
+2. Create and push a version tag, for example `v2.1.0`, to publish `2.1.0`
+   and `2.1`.
+3. In the repository's Packages settings, make the container package public
+   so users can pull it without registry authentication.
+
+The commit-specific tag provides an immutable deployment identity, while a
+semantic-version tag communicates a supported release and `latest` tracks the
+current production branch.
 
 ---
 

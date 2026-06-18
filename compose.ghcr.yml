@@ -1,0 +1,24 @@
+services:
+  app:
+    # Pull the published release by default; set STINGRAY_DASHBOARD_IMAGE to pin
+    # a version such as ghcr.io/anhph95/stingray-dashboard:2.0.0.
+    image: ${STINGRAY_DASHBOARD_IMAGE:-ghcr.io/anhph95/stingray-dashboard:latest}
+
+    # Keep the established container name for operational familiarity.
+    container_name: stingray-dashboard
+
+    # Publish the dashboard at http://localhost:8050.
+    ports:
+      - "${STINGRAY_DASHBOARD_PORT:-8050}:8050"
+
+    # Mount the user's dashboard workspace without allowing container writes.
+    # DASH_DATA_DIR must contain the data/ and misc/ directories.
+    volumes:
+      - ${DASH_DATA_DIR:-./dash_data}:/dash_data:ro
+
+    # Stream Python logs directly to Docker's logging system.
+    environment:
+      PYTHONUNBUFFERED: "1"
+
+    # Restore the service after a host or Docker daemon restart.
+    restart: unless-stopped
