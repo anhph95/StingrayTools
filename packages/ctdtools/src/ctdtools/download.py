@@ -5,15 +5,17 @@ from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
 import pandas as pd
 import os
+
 API_URL = "https://nes-lter-api.whoi.edu"
 DEFAULT_MAX_WORKERS = max(1, (os.cpu_count() or 2) - 1)
 def setup_logging(log_dir="logs", name="ctd_batch", level=logging.INFO):
-    Path(log_dir).mkdir(parents=True, exist_ok=True)
+    log_dir = Path(log_dir)
+    log_dir.mkdir(parents=True, exist_ok=True)
     logger = logging.getLogger(name)
     logger.setLevel(level)
     logger.handlers.clear()
     fmt = logging.Formatter("%(asctime)s | %(levelname)s | %(message)s")
-    file_handler = logging.FileHandler(Path(log_dir) / f"{name}.log")
+    file_handler = logging.FileHandler(log_dir / f"{name}.log")
     file_handler.setLevel(level)
     file_handler.setFormatter(fmt)
     stream_handler = logging.StreamHandler()
@@ -31,7 +33,7 @@ def cli(argv: list[str] | None = None):
     p.add_argument("--max-workers", type=int, default=DEFAULT_MAX_WORKERS, help="Thread pool size for cast downloads")
     p.add_argument("--skip-existing", action="store_true", help="Skip cruise if any *_CRUISE.csv already exists")
     p.add_argument("--only-cruise", nargs="*", default=None, help="Optional list of cruise names to process")
-    p.add_argument("--log-dir", default="logs", help="Directory for log files")
+    p.add_argument("--work-dir", default=".", help="Workspace containing output and logs")
     p.add_argument("--log-level", default="INFO", choices=["DEBUG", "INFO", "WARNING", "ERROR"])
     return p.parse_args(argv)
 def cruise_file_exists(out_dir: Path, cruise: str) -> bool:
@@ -98,12 +100,15 @@ def get_date_from_df(df: pd.DataFrame) -> str:
     return "nodate"
 def main(argv: list[str] | None = None):
     args = cli(argv)
+    work_dir = Path(args.work_dir).expanduser().resolve()
     logger = setup_logging(
-        log_dir=args.log_dir,
+        log_dir=work_dir / "logs",
         name="nes_lter_ctd_batch",
         level=getattr(logging, args.log_level),
     )
-    out_dir = Path(args.out_dir)
+    out_dir = Path(args.out_dir).expanduser()
+    if not out_dir.is_absolute():
+        out_dir = work_dir / out_dir
     out_dir.mkdir(parents=True, exist_ok=True)
     logger.info("Loading cruise list...")
     cruise_list = pd.read_csv(f"{API_URL}/api/ctd/cruises/all")

@@ -11,6 +11,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from stingray.logging.setup import setup_logging
+
 logger = logging.getLogger(__name__)
 
 
@@ -207,6 +209,11 @@ def main(argv=None) -> None:
     )
 
     parser.add_argument("merged_csv")
+    parser.add_argument(
+        "--work-dir",
+        default=".",
+        help="Workspace whose logs directory receives command logs.",
+    )
 
     parser.add_argument("--cruise", required=True)
 
@@ -230,7 +237,11 @@ def main(argv=None) -> None:
 
     args = parser.parse_args(argv)
 
-    logging.basicConfig(level=logging.INFO)
+    work_dir = Path(args.work_dir).expanduser().resolve()
+    setup_logging(
+        log_dir=work_dir / "logs",
+        name="stingray_images_add_media",
+    )
 
     add_media_to_merged(
         merged_csv=args.merged_csv,

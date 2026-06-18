@@ -1,17 +1,20 @@
 #!/usr/bin/env python3
 import argparse
+import logging
 import time
 from pathlib import Path
 import numpy as np
 import pandas as pd
 import tator
+from stingray.logging.setup import setup_logging
+
+logger = logging.getLogger(__name__)
 # =======================
 # ====== HELPERS ========
 # =======================
 def log(msg):
     """Simple timestamped logger."""
-    ts = time.strftime("%Y-%m-%d %H:%M:%S")
-    print(f"[{ts}] {msg}", flush=True)
+    logger.info(msg)
 def normalize_name(name: str) -> str:
     """Normalize media names (handles .avi inconsistencies + casing)."""
     if pd.isna(name):
@@ -20,7 +23,7 @@ def normalize_name(name: str) -> str:
 # =======================
 # ====== MAIN ===========
 # =======================
-def main():
+def main(argv=None):
     parser = argparse.ArgumentParser(
         description="Add Tator annotation links to a precomputed media/frame CSV."
     )
@@ -29,7 +32,17 @@ def main():
     parser.add_argument("--host", default="https://stingray.tator.whoi.edu")
     parser.add_argument("--project-id", type=int, default=1)
     parser.add_argument("--token", required=True)
-    args = parser.parse_args()
+    parser.add_argument(
+        "--work-dir",
+        default=".",
+        help="Workspace whose logs directory receives command logs.",
+    )
+    args = parser.parse_args(argv)
+    work_dir = Path(args.work_dir).expanduser().resolve()
+    setup_logging(
+        log_dir=work_dir / "logs",
+        name="stingray_images_tator_links",
+    )
     t0 = time.time()
     # =======================
     # Load CSV

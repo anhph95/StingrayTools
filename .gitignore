@@ -1,60 +1,50 @@
-# Python build and cache artifacts
+# Python bytecode and interpreter caches
 __pycache__/
 *.py[cod]
-*.pyo
-*.pyd
-*.pkl
-*.egg-info/
+*$py.class
+
+# Python packaging and build output
 build/
 dist/
-.cache/
-.pytest_cache/
-.mypy_cache/
+*.egg
+*.egg-info/
+.eggs/
 
 # Virtual environments
 .venv/
 venv/
 env/
+ENV/
 
-# Local analysis products retained outside the source repository
-/*.ipynb
-/*.csv
-/*.html
+# Test, coverage, type-checking, and lint caches
+.pytest_cache/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+.cache/
+.mypy_cache/
+.pyright/
+.ruff_cache/
+.tox/
+.nox/
+
+# Notebook checkpoints
 .ipynb_checkpoints/
 
-# Workspace runtime data, indexes, logs, and generated products
-/AR100/
-/cruise_data/
-/dash_data/data/
-/indexes/
-/logs/
-/media_list/
-/merged_data/
-/modified_CAL/
-/old_code/
-/raw_data/
-/sensor_data/
-/suna_calibration/
-/yolo_results/
-/dash_uploads/
-/.dash_uploads/
-
-# Local secrets and service configuration
+# Local secrets and logs
 *.token
-/ls_config.json
 *.log
 
 # Editors and operating-system metadata
 .vscode/
 .idea/
+*.swp
+*.swo
+*~
 .DS_Store
 Thumbs.db
 
-# Ignore all top-level directories by default.
-/*/
-
-# Keep GitHub automation available for version control.
-!/.github/
-
-# Keep repository source packages available for version control.
-!/packages/
+# Local agent and Codex workspace metadata
+.agents/
+.codex/

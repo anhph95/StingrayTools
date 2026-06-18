@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import logging
 import os
 from dataclasses import dataclass
 from datetime import datetime
@@ -14,8 +15,10 @@ import yaml
 from stingray.utils.gridding import assign_time_bins
 from stingray.utils.temporal import convert_timestamp
 from stingray.stats.poisson import add_poisson_ci
+from stingray.logging.setup import setup_logging
 
 ORIGIN = datetime(1904, 1, 1)
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -36,10 +39,10 @@ class Config:
 
 def process(config: Config) -> pd.DataFrame:
     """Convert YOLO detections into time-binned abundance merged onto sensor data."""
-    print("Loading YOLO CSV...")
+    logger.info("Loading YOLO CSV...")
     df = pd.read_csv(config.yolo_csv, sep=" ")
 
-    print("Loading class dictionary...")
+    logger.info("Loading class dictionary...")
     with config.data_yaml.open(encoding="utf-8") as f:
         names = yaml.safe_load(f)["names"]
 
@@ -87,7 +90,7 @@ def process(config: Config) -> pd.DataFrame:
         ["media", "frame", "total_abundance"]
     ).to_list()
 
-    print("Loading sensor + media CSVs...")
+    logger.info("Loading sensor + media CSVs...")
     sensor_df = pd.read_csv(config.sensor_csv)
     media_df = pd.read_csv(config.media_csv)
 
@@ -134,7 +137,7 @@ def process(config: Config) -> pd.DataFrame:
     df_bin["total_abundance"] = df_bin[data_cols].sum(axis=1)
 
     if config.add_ci:
-        print("Computing Poisson confidence intervals...")
+        logger.info("Computing Poisson confidence intervals...")
         raw_counts_by_bin = (
             abundance_df.groupby("times")[data_cols]
             .sum()
@@ -161,10 +164,10 @@ def process(config: Config) -> pd.DataFrame:
         .reset_index(drop=True)
     )
 
-    print(f"Writing output: {config.out_csv}")
+    logger.info("Writing output: %s", config.out_csv)
     config.out_csv.parent.mkdir(parents=True, exist_ok=True)
     df_merged.to_csv(config.out_csv, index=False)
-    print("Done")
+    logger.info("Done")
 
     return df_merged
 
@@ -202,6 +205,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
 
     options = parser.add_argument_group("processing options")
+    options.add_argument(
+        "--work-dir",
+        default=".",
+        help="Workspace whose logs directory receives command logs.",
+    )
     options.add_argument("--score-thresh", type=float, default=0.7)
     options.add_argument("--bin-width", type=float, default=5.0, help="Time-bin width in seconds")
     options.add_argument("--image-width", type=int, default=2330)
@@ -231,7 +239,13 @@ def config_from_args(args: argparse.Namespace) -> Config:
 
 
 def main(argv: list[str] | None = None) -> None:
-    config = config_from_args(parse_args(argv))
+    args = parse_args(argv)
+    work_dir = Path(args.work_dir).expanduser().resolve()
+    setup_logging(
+        log_dir=work_dir / "logs",
+        name="stingray_images_abundance",
+    )
+    config = config_from_args(args)
     process(config)
 
 

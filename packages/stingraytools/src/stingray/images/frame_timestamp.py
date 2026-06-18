@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import os
 import cv2
+import logging
 import time
 import argparse
 import pandas as pd
@@ -8,6 +9,9 @@ from pathlib import Path
 from datetime import datetime, timedelta
 from tqdm import tqdm
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
+from stingray.logging.setup import setup_logging
+
+logger = logging.getLogger(__name__)
 # =======================
 # ====== DEFAULTS ======
 # =======================
@@ -41,8 +45,7 @@ except Exception:
 # ====== HELPERS ========
 # =======================
 def log(msg):
-    ts = time.strftime("%Y-%m-%d %H:%M:%S")
-    print(f"[{ts}] {msg}", flush=True)
+    logger.info(msg)
 def normalize_suffixes(suffixes):
     return {
         s.lower() if str(s).startswith(".") else f".{str(s).lower()}"
@@ -261,7 +264,7 @@ def extract_details_dataframe(media_dir, max_workers, suffixes=None, file_limit=
         log(f"Bad file rows: {bad_files:,}")
         log(f"Bad frame rows: {bad_frames:,}")
     return df
-def main():
+def main(argv=None):
     parser = argparse.ArgumentParser(
         description="Build media CSV using fast modal-size logic or full per-frame timestamp extraction."
     )
@@ -279,7 +282,17 @@ def main():
     parser.add_argument("--file-limit", type=int, default=None)
     parser.add_argument("--suffix", nargs="+", default=None)
     parser.add_argument("--details", action="store_true")
-    args = parser.parse_args()
+    parser.add_argument(
+        "--work-dir",
+        default=".",
+        help="Workspace whose logs directory receives command logs.",
+    )
+    args = parser.parse_args(argv)
+    work_dir = Path(args.work_dir).expanduser().resolve()
+    setup_logging(
+        log_dir=work_dir / "logs",
+        name="stingray_images_frame_timestamp",
+    )
     t0 = time.time()
     fps, out_dir, folder_name = resolve_config(args.video_type, args.fps, args.out_dir)
     os.makedirs(out_dir, exist_ok=True)

@@ -35,9 +35,12 @@ def setup_logging(
     logger = logging.getLogger()
     logger.setLevel(level)
 
-    # Prevent duplicate handlers (important for notebooks / repeated runs)
-    if logger.handlers:
-        return logger
+    # Replace handlers created by an earlier Stingray command while preserving
+    # handlers owned by embedding applications such as notebooks.
+    for handler in list(logger.handlers):
+        if getattr(handler, "_stingray_handler", False):
+            logger.removeHandler(handler)
+            handler.close()
 
     fmt = logging.Formatter("%(asctime)s | %(levelname)s | %(name)s | %(message)s")
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -49,10 +52,12 @@ def setup_logging(
         err_path = log_dir / f"{logger_name}_{ts}.err.log"
 
         out_handler = logging.FileHandler(out_path)
-        out_handler.setLevel(logging.INFO)
+        out_handler._stingray_handler = True
+        out_handler.setLevel(level)
         out_handler.setFormatter(fmt)
 
         err_handler = logging.FileHandler(err_path)
+        err_handler._stingray_handler = True
         err_handler.setLevel(logging.ERROR)
         err_handler.setFormatter(fmt)
 
@@ -64,7 +69,8 @@ def setup_logging(
 
     if console:
         console_handler = logging.StreamHandler()
-        console_handler.setLevel(logging.INFO)
+        console_handler._stingray_handler = True
+        console_handler.setLevel(level)
         console_handler.setFormatter(fmt)
         logger.addHandler(console_handler)
 

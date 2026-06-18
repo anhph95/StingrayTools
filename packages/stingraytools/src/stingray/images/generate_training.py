@@ -2,47 +2,25 @@ import os, sys, shutil, argparse, logging, hashlib, pandas as pd, numpy as np
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from collections import defaultdict, Counter
+from pathlib import Path
+
+from stingray.logging.setup import setup_logging
 
 try:
     from tqdm import tqdm
 except ImportError:
     tqdm = None
 
-# ===============================
-# Logging to working directory
-# ===============================
-def init_logging():
-    log = logging.getLogger()
-    log.setLevel(logging.INFO)
+log = logging.getLogger(__name__)
 
-    # Console
-    ch = logging.StreamHandler()
-    ch.setFormatter(logging.Formatter('[%(levelname)s] %(message)s'))
-    log.addHandler(ch)
 
-    # Log file with date
-    today = datetime.now().strftime("%Y%m%d")
-    logfile = f"run_log_{today}.txt"
-    logfile_path = os.path.join(os.getcwd(), logfile)
-    fh = logging.FileHandler(logfile_path, mode='a')
-    fh.setFormatter(logging.Formatter('[%(levelname)s] %(message)s'))
-    log.addHandler(fh)
-
-    # Header
-    log.info("=============== NEW RUN ===============")
-    log.info(f"Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    log.info("Command: " + " ".join(sys.argv))
-    log.info("=======================================")
-    log.info(f"Logging to: {logfile_path}")
-    return log
-
-log = init_logging()
-warn = lambda m: log.warning(m)
+def warn(message):
+    log.warning(message)
 
 # ===============================
 # Parse arguments
 # ===============================
-def parse_args():
+def parse_args(argv=None):
     p = argparse.ArgumentParser(description="Prepare YOLO training data from Tator annotations.")
     p.add_argument("--in_dir", type=str, nargs="+", required=True, help="Multiple input directories")
     p.add_argument("--img_dim", type=int, nargs=2, default=[2330, 1750], help="Image width height")
@@ -56,7 +34,12 @@ def parse_args():
     p.add_argument("--num_workers", type=int, default=max(1, os.cpu_count()-1))
     p.add_argument("--verbose", action="store_true")
     p.add_argument("--save_yaml", action="store_true")
-    return p.parse_args()
+    p.add_argument(
+        "--work-dir",
+        default=".",
+        help="Workspace whose logs directory receives command logs.",
+    )
+    return p.parse_args(argv)
 
 # ===============================
 # File load + merge (keep latest)
@@ -206,8 +189,14 @@ def write_yaml(classes, out_dir):
 # ===============================
 # MAIN
 # ===============================
-def main():
-    args = parse_args()
+def main(argv=None):
+    args = parse_args(argv)
+    work_dir = Path(args.work_dir).expanduser().resolve()
+    setup_logging(
+        log_dir=work_dir / "logs",
+        name="stingray_images_generate_training",
+    )
+    log.info("Command: %s", " ".join(sys.argv))
 
     # output dir with date
     today = datetime.now().strftime("%Y%m%d")
@@ -300,7 +289,7 @@ def main():
     # confirm
     ans = input("Continue? (y/n): ").lower().strip()
     if ans!="y":
-        print("Cancelled")
+        log.info("Cancelled")
         sys.exit(0)
 
     # create dirs
