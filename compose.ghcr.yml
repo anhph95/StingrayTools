@@ -14,11 +14,17 @@ services:
     # Mount the user's dashboard workspace as read-only input.
     # Only data/ is required; misc/ may contain optional reference overrides.
     volumes:
-      - ${DASH_DATA_DIR:-./dash_data}:/dash_data:ro
+      - type: bind
+        source: ${DASH_DATA_DIR:-./dash_data}
+        target: /dash_data
+        read_only: true
 
     # Stream Python logs directly to Docker's logging system.
+    # Leave STINGRAY_DEFAULT_DATASET empty to use the first folder in /dash_data/data.
     environment:
       PYTHONUNBUFFERED: "1"
+      STINGRAY_DASHBOARD_PORT: "${STINGRAY_DASHBOARD_PORT:-8050}"
+      STINGRAY_DEFAULT_DATASET: "${STINGRAY_DEFAULT_DATASET:-}"
 
     # Restore the service after a host or Docker daemon restart.
     restart: unless-stopped

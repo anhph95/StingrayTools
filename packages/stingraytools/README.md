@@ -43,6 +43,87 @@ Dashboard station and bathymetry reference tables are installed with the
 package. To override them for one workspace, place replacements in
 `dash_data/misc/`.
 
+## Example: shipboard processing and dashboard deployment
+
+This workflow keeps processing and visualization connected through one shared
+workspace. The Python environment produces dashboard-ready CSV files, and the
+Docker dashboard reads those files through a read-only mount.
+
+```bash
+# Create a dedicated virtual environment on the shipboard or server Linux host.
+python3 -m venv ~/venv/stingray
+source ~/venv/stingray/bin/activate
+
+# Install StingrayTools from Git so the command-line processing tools are available.
+pip install "git+https://github.com/anhph95/StingrayTools.git"
+
+# Mount the network share using the method appropriate for the host system.
+# This example assumes the share is available at /mnt/stingray_share.
+cd /mnt/stingray_share
+
+# Confirm the workspace contains the expected runtime inputs before processing.
+# sensor_data/ contains raw instrument folders; media_list/ is optional.
+ls sensor_data
+
+# Process one cruise into dash_data/data/stingray/.
+stingray sensors merge \
+  --work-dir . \
+  --cruise EN706 \
+  --start 2023-08-07 \
+  --end 2023-08-14 \
+  --cal-year 2021 \
+  --time-bin-seconds 5
+
+# Download the release Compose file if it is not already present on the server.
+curl -O https://raw.githubusercontent.com/anhph95/stingraytools/main/compose.ghcr.yml
+
+# Serve the generated dashboard files with the published container image.
+# STINGRAY_DEFAULT_DATASET pins the initial dataset selector to the processing output.
+DASH_DATA_DIR=/mnt/stingray_share/dash_data \
+STINGRAY_DEFAULT_DATASET=stingray \
+  docker compose -f compose.ghcr.yml up -d
+```
+
+The dashboard container does not write into `dash_data/`. Re-run
+`stingray sensors merge` when new cruise data arrive, then refresh the dashboard
+file list or restart the container if the deployment policy prefers restarts.
+
+## Example: WSL2 development and local dashboard checks
+
+This workflow is useful when editing code or batch-editing CSV outputs from a
+Windows-mounted drive. It keeps the source checkout editable while using the
+same workspace layout as the shipboard deployment.
+
+```bash
+# Activate the WSL2 virtual environment used for StingrayTools development.
+source /home/anhph/venv/stingray/bin/activate
+
+# Install the full repository from the local checkout so code edits are live.
+cd "/mnt/c/Users/anhph/OneDrive - Woods Hole Oceanographic Institution/stingraytools"
+pip install -e ".[dev]"
+
+# Enter the mounted data workspace, not the source repository.
+cd "/mnt/c/path/to/stingray_workspace"
+
+# Process or reprocess the cruise data into dash_data/data/stingray/.
+stingray sensors merge \
+  --work-dir . \
+  --cruise EN706 \
+  --start 2023-08-07 \
+  --end 2023-08-14 \
+  --time-bin-seconds 5
+
+# Run the dashboard directly from the Python environment for local inspection.
+stingray-dashboard \
+  --work-dir dash_data \
+  --default-dataset stingray \
+  --host 127.0.0.1 \
+  --port 8050
+```
+
+Open `http://127.0.0.1:8050` to inspect the processed data before publishing or
+copying the workspace to a server.
+
 ## Process one cruise
 
 The following command processes cruise `EN706` from August 7 through August

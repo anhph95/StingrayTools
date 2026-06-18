@@ -17,6 +17,9 @@ RUN apt-get update && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
+COPY packages/stingray-dashboard/docker-entrypoint.sh /app/docker-entrypoint.sh
+RUN chmod +x /app/docker-entrypoint.sh
+
 EXPOSE 8050
 
-CMD ["gunicorn", "--bind", "0.0.0.0:8050", "stingray_dashboard.app:application"]
+CMD ["/app/docker-entrypoint.sh"]
