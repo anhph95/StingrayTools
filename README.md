@@ -41,8 +41,10 @@ pip install "ctdtools @ git+https://github.com/anhph95/StingrayTools.git#subdire
 ## Docker dashboard install
 
 Docker is enough to install and run the dashboard on Linux, macOS, or Windows
-with Docker Desktop. The container visualizes existing `dash_data/` files; use
-the Python package workflow when you need to process raw Stingray sensor data.
+with Docker Desktop. Use the released image from GitHub Container Registry
+rather than building the dashboard from source. The container visualizes
+existing `dash_data/` files; use the Python package workflow when you need to
+process raw Stingray sensor data.
 
 Unix shell:
 
@@ -50,7 +52,10 @@ Unix shell:
 curl -O https://raw.githubusercontent.com/anhph95/stingraytools/main/compose.ghcr.yml
 DASH_DATA_DIR=/path/to/dash_data \
 STINGRAY_DEFAULT_DATASET=stingray \
-  docker compose -f compose.ghcr.yml up -d
+  docker compose -f compose.ghcr.yml pull
+DASH_DATA_DIR=/path/to/dash_data \
+STINGRAY_DEFAULT_DATASET=stingray \
+  docker compose -f compose.ghcr.yml up -d --pull always
 ```
 
 Windows PowerShell:
@@ -61,14 +66,15 @@ Invoke-WebRequest `
   -OutFile "compose.ghcr.yml"
 $env:DASH_DATA_DIR = "C:\path\to\dash_data"
 $env:STINGRAY_DEFAULT_DATASET = "stingray"
-docker compose -f compose.ghcr.yml up -d
+docker compose -f compose.ghcr.yml pull
+docker compose -f compose.ghcr.yml up -d --pull always
 ```
 
 Open `http://127.0.0.1:8050`. Leave `STINGRAY_DEFAULT_DATASET` unset to open
 the first dataset folder under `dash_data/data/`. If host port `8050` is already
 in use, set `STINGRAY_DASHBOARD_PORT`, for example
-`STINGRAY_DASHBOARD_PORT=8051 docker compose -f compose.ghcr.yml up -d`, and
-open `http://127.0.0.1:8051`.
+`STINGRAY_DASHBOARD_PORT=8051 docker compose -f compose.ghcr.yml up -d --pull always`,
+and open `http://127.0.0.1:8051`.
 
 Usage, data-layout, development, and deployment instructions are maintained in
 the package READMEs linked above.
@@ -99,10 +105,13 @@ stingray sensors merge \
   --end 2023-08-14 \
   --cal-year 2021
 
-# Serve the generated dashboard data with the published container image.
+# Serve the generated dashboard data with the released container image.
 DASH_DATA_DIR=/mnt/stingray_share/dash_data \
 STINGRAY_DEFAULT_DATASET=stingray \
-  docker compose -f compose.ghcr.yml up -d
+  docker compose -f compose.ghcr.yml pull
+DASH_DATA_DIR=/mnt/stingray_share/dash_data \
+STINGRAY_DEFAULT_DATASET=stingray \
+  docker compose -f compose.ghcr.yml up -d --pull always
 ```
 
 The processing environment writes CSV products into `dash_data/`; the Docker

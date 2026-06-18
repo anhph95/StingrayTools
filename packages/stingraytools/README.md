@@ -77,16 +77,22 @@ stingray sensors merge \
 # Download the release Compose file if it is not already present on the server.
 curl -O https://raw.githubusercontent.com/anhph95/stingraytools/main/compose.ghcr.yml
 
-# Serve the generated dashboard files with the published container image.
+# Pull the published dashboard release; no local image build is required.
+DASH_DATA_DIR=/mnt/stingray_share/dash_data \
+  docker compose -f compose.ghcr.yml pull
+
+# Serve the generated dashboard files with the released container image.
 # STINGRAY_DEFAULT_DATASET pins the initial dataset selector to the processing output.
 DASH_DATA_DIR=/mnt/stingray_share/dash_data \
 STINGRAY_DEFAULT_DATASET=stingray \
-  docker compose -f compose.ghcr.yml up -d
+  docker compose -f compose.ghcr.yml up -d --pull always
 ```
 
 The dashboard container does not write into `dash_data/`. Re-run
 `stingray sensors merge` when new cruise data arrive, then refresh the dashboard
 file list or restart the container if the deployment policy prefers restarts.
+Building a dashboard image locally is reserved for application development;
+shipboard and server deployments should use the released GHCR image.
 
 ## Example: WSL2 development and local dashboard checks
 
