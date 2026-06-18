@@ -15,7 +15,7 @@ import yaml
 from stingray.utils.gridding import assign_time_bins
 from stingray.utils.temporal import convert_timestamp
 from stingray.stats.poisson import add_poisson_ci
-from stingray.logging.setup import setup_logging
+from stingray.logging.setup import log_command_options, setup_logging
 
 ORIGIN = datetime(1904, 1, 1)
 logger = logging.getLogger(__name__)
@@ -245,6 +245,7 @@ def main(argv: list[str] | None = None) -> None:
         log_dir=work_dir / "logs",
         name="stingray_images_abundance",
     )
+    log_command_options(logger, args)
     config = config_from_args(args)
     process(config)
 

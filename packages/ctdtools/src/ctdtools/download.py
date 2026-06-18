@@ -25,6 +25,10 @@ def setup_logging(log_dir="logs", name="ctd_batch", level=logging.INFO):
     logger.addHandler(stream_handler)
     logger.propagate = False
     return logger
+def log_command_options(logger: logging.Logger, args: argparse.Namespace) -> None:
+    """Log parsed command options in stable order."""
+    level = max(logging.INFO, logger.getEffectiveLevel())
+    logger.log(level, "Command options: %s", dict(sorted(vars(args).items())))
 def cli(argv: list[str] | None = None):
     p = argparse.ArgumentParser(
         description="Download NES-LTER CTD cruise data, merge missing lat/lon/date from metadata when needed, and save one CSV per cruise."
@@ -106,6 +110,7 @@ def main(argv: list[str] | None = None):
         name="nes_lter_ctd_batch",
         level=getattr(logging, args.log_level),
     )
+    log_command_options(logger, args)
     out_dir = Path(args.out_dir).expanduser()
     if not out_dir.is_absolute():
         out_dir = work_dir / out_dir

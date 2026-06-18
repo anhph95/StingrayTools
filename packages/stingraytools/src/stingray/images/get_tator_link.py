@@ -6,7 +6,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import tator
-from stingray.logging.setup import setup_logging
+from stingray.logging.setup import log_command_options, setup_logging
 
 logger = logging.getLogger(__name__)
 # =======================
@@ -43,6 +43,7 @@ def main(argv=None):
         log_dir=work_dir / "logs",
         name="stingray_images_tator_links",
     )
+    log_command_options(logger, args)
     t0 = time.time()
     # =======================
     # Load CSV

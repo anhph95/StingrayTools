@@ -4,7 +4,7 @@ import argparse
 import logging
 from pathlib import Path
 
-from stingray.logging.setup import setup_logging
+from stingray.logging.setup import log_command_options, setup_logging
 from stingray.sensors.merge import merge_sensors
 
 
@@ -103,11 +103,12 @@ def main(argv=None) -> None:
     if suna_cal_dir is not None and not suna_cal_dir.is_absolute():
         suna_cal_dir = work_dir / suna_cal_dir
 
-    setup_logging(
+    logger = setup_logging(
         log_dir=work_dir / "logs",
         name=__name__,
         level=getattr(logging, args.log_level),
     )
+    log_command_options(logger, args)
 
     merge_sensors(
         cruise=args.cruise,

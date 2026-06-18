@@ -5,7 +5,23 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 from datetime import datetime
-from typing import Optional
+from typing import Any, Optional
+
+
+def log_command_options(
+    logger: logging.Logger,
+    options: Any,
+    exclude: tuple[str, ...] = ("token",),
+) -> None:
+    """Log parsed command options in stable order, excluding secrets."""
+    excluded = set(exclude)
+    safe_options = {
+        key: value
+        for key, value in sorted(vars(options).items())
+        if key not in excluded
+    }
+    level = max(logging.INFO, logger.getEffectiveLevel())
+    logger.log(level, "Command options: %s", safe_options)
 
 
 def setup_logging(

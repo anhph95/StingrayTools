@@ -9,7 +9,7 @@ from pathlib import Path
 from datetime import datetime, timedelta
 from tqdm import tqdm
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
-from stingray.logging.setup import setup_logging
+from stingray.logging.setup import log_command_options, setup_logging
 
 logger = logging.getLogger(__name__)
 # =======================
@@ -293,6 +293,7 @@ def main(argv=None):
         log_dir=work_dir / "logs",
         name="stingray_images_frame_timestamp",
     )
+    log_command_options(logger, args)
     t0 = time.time()
     fps, out_dir, folder_name = resolve_config(args.video_type, args.fps, args.out_dir)
     os.makedirs(out_dir, exist_ok=True)

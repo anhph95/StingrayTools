@@ -11,7 +11,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from stingray.logging.setup import setup_logging
+from stingray.logging.setup import log_command_options, setup_logging
 
 logger = logging.getLogger(__name__)
 
@@ -242,6 +242,7 @@ def main(argv=None) -> None:
         log_dir=work_dir / "logs",
         name="stingray_images_add_media",
     )
+    log_command_options(logger, args)
 
     add_media_to_merged(
         merged_csv=args.merged_csv,

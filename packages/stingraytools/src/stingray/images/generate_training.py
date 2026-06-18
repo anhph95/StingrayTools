@@ -4,7 +4,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from collections import defaultdict, Counter
 from pathlib import Path
 
-from stingray.logging.setup import setup_logging
+from stingray.logging.setup import log_command_options, setup_logging
 
 try:
     from tqdm import tqdm
@@ -196,7 +196,7 @@ def main(argv=None):
         log_dir=work_dir / "logs",
         name="stingray_images_generate_training",
     )
-    log.info("Command: %s", " ".join(sys.argv))
+    log_command_options(log, args)
 
     # output dir with date
     today = datetime.now().strftime("%Y%m%d")
