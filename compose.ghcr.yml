@@ -1,8 +1,7 @@
 services:
   app:
-    # Pull the published release by default; set STINGRAY_DASHBOARD_IMAGE to pin
-    # a version such as ghcr.io/anhph95/stingray-dashboard:2.0.0.
-    image: ${STINGRAY_DASHBOARD_IMAGE:-ghcr.io/anhph95/stingray-dashboard:latest}
+    # Pull the supported published release by default.
+    image: ${STINGRAY_DASHBOARD_IMAGE:-ghcr.io/anhph95/stingray-dashboard:3.0.0}
 
     # Keep the established container name for operational familiarity.
     container_name: stingray-dashboard
