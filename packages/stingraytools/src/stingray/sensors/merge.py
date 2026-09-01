@@ -178,18 +178,28 @@ def merge_sensors(
     # DVL BLOCK
     # -------------------------
     dvl = sensors["dvl"]
+    dvl_agg_columns = {
+        "anglePitch": "median",
+        "angleRoll": "median",
+        "angleHeading": "median",
+        "distanceAltitude": "median",
+        "velocityWaterTransverse": "median",
+        "velocityWaterLongitudinal": "median",
+        "velocityWaterNormal": "median",
+        "velocityGroundTransverse": "median",
+        "velocityGroundLongitudinal": "median",
+        "velocityGroundVertical": "median",
+    }
+    dvl_agg_columns = {
+        name: method
+        for name, method in dvl_agg_columns.items()
+        if name in dvl.columns
+    }
 
     dvl_agg = (
         dvl.sort_values("Timestamp")
         .groupby("time_bin", as_index=False)
-        .agg(
-            {
-                "anglePitch": "median",
-                "angleRoll": "median",
-                "angleHeading": "median",
-                "distanceAltitude": "median",
-            }
-        )
+        .agg(dvl_agg_columns)
     )
 
     logger.info("DVL bins: %s", len(dvl_agg))

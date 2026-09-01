@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import logging
 
+from stingray.config.columns import SLED_COLUMNS
 from stingray.logging.setup import log_command_options
 
 
@@ -35,3 +36,13 @@ def test_log_command_options_survives_warning_log_level(caplog):
         log_command_options(logger, argparse.Namespace(log_level="WARNING"))
 
     assert "log_level" in caplog.messages[-1]
+
+
+def test_dvl_velocity_columns_are_output_as_snake_case():
+    """DVL velocity fields should be preserved in dashboard-ready output."""
+    assert SLED_COLUMNS["velocityWaterTransverse"] == "velocity_water_transverse"
+    assert SLED_COLUMNS["velocityWaterLongitudinal"] == "velocity_water_longitudinal"
+    assert SLED_COLUMNS["velocityWaterNormal"] == "velocity_water_normal"
+    assert SLED_COLUMNS["velocityGroundTransverse"] == "velocity_ground_transverse"
+    assert SLED_COLUMNS["velocityGroundLongitudinal"] == "velocity_ground_longitudinal"
+    assert SLED_COLUMNS["velocityGroundVertical"] == "velocity_ground_vertical"
