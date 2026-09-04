@@ -18,20 +18,6 @@ logger = logging.getLogger(__name__)
 SLURM_CPUS = int(os.getenv("SLURM_CPUS_PER_TASK", os.cpu_count() or 1))
 # Fast mode is mostly metadata + a few frame reads, so do not over-allocate
 DEFAULT_MAX_WORKERS = max(1, min(8, SLURM_CPUS - 1 if SLURM_CPUS > 1 else 1))
-# Optional camera presets for interactive use. Slurm wrappers can pass
-# --media-dir, --fps, and --out-dir explicitly instead.
-VIDEO_TYPE_CONFIG = {
-    "ISIIS2": {
-        "fps": 12.0,
-        "out_dir": "media_list/ISIIS2",
-        "folder_name": "Basler_a2a2840-14gmBAS",
-    },
-    "ISIIS1": {
-        "fps": 15.0,
-        "out_dir": "media_list/ISIIS1",
-        "folder_name": "Basler_avA2300-25gm",
-    },
-}
 DEFAULT_SUFFIXES = {".avi", ".mp4", ".png", ".tiff"}
 FAST_SAMPLE_COUNT = 5
 # Prevent thread oversubscription inside OpenCV / BLAS
@@ -76,13 +62,29 @@ def get_file_size(file_path):
         return (file_path, None)
     except Exception:
         return (file_path, None)
-def get_frame_count(file_path):
+IMAGE_SUFFIXES = {".png", ".tiff", ".tif", ".jpg", ".jpeg"}
+
+
+def valid_fps(value):
+    return value is not None and pd.notna(value) and value > 0
+
+
+def get_media_metadata(file_path):
     suffix = Path(file_path).suffix.lower()
-    if suffix in {".png", ".tiff", ".tif", ".jpg", ".jpeg"}:
-        return 1
+    if suffix in IMAGE_SUFFIXES:
+        return {
+            "frame_count": 1,
+            "fps": None,
+        }
     cap = cv2.VideoCapture(file_path)
     if not cap.isOpened():
-        return None
+        return {
+            "frame_count": None,
+            "fps": None,
+        }
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    if not valid_fps(fps):
+        fps = None
     count = 0
     while True:
         ret, _ = cap.read()
@@ -90,26 +92,31 @@ def get_frame_count(file_path):
             break
         count += 1
     cap.release()
-    return count
-def resolve_config(video_type, fps_arg, out_dir_arg, folder_name_arg):
-    if video_type is not None and video_type not in VIDEO_TYPE_CONFIG:
-        raise ValueError(
-            f"Unknown --video-type '{video_type}'. "
-            f"Known types: {', '.join(VIDEO_TYPE_CONFIG)}"
-        )
-    config = VIDEO_TYPE_CONFIG.get(video_type, {})
-    fps = fps_arg if fps_arg is not None else config.get("fps")
-    out_dir = out_dir_arg if out_dir_arg is not None else config.get("out_dir")
-    folder_name = (
-        folder_name_arg
-        if folder_name_arg is not None
-        else config.get("folder_name")
-    )
-    if fps is None:
-        raise ValueError("Provide --fps, or use --video-type with an FPS preset.")
-    if out_dir is None:
-        raise ValueError("Provide --out-dir, or use --video-type with an output preset.")
-    return fps, out_dir, folder_name
+    return {
+        "frame_count": count,
+        "fps": fps,
+    }
+
+
+def metadata_values_agree(values):
+    valid_values = [value for value in values if value is not None and pd.notna(value)]
+    if len(valid_values) != len(values):
+        return False
+    if not valid_values:
+        return False
+    return len(set(valid_values)) == 1
+
+
+def fps_values_agree(values):
+    valid_values = [value for value in values if valid_fps(value)]
+    if len(valid_values) != len(values):
+        return False
+    if not valid_values:
+        return False
+    rounded = {round(float(value), 6) for value in valid_values}
+    return len(rounded) == 1
+
+
 def build_base_dataframe(media_dir, max_workers, suffixes=None, file_limit=None):
     file_paths = list_files(media_dir)
     allowed = normalize_suffixes(suffixes) if suffixes else DEFAULT_SUFFIXES
@@ -156,15 +163,17 @@ def sample_group_paths(group, sample_count=FAST_SAMPLE_COUNT):
     return group.iloc[positions]["media_path"].tolist()
 
 
-def assign_frame_counts_fast(df, max_workers):
+def assign_media_metadata_fast(df, max_workers):
     df = df.copy()
     valid_mask = df["media_size"].notna()
     if not valid_mask.any():
         log("No valid file sizes found.")
         df["frame_count"] = None
+        df["fps"] = None
         return df
 
     df["frame_count"] = None
+    df["fps"] = None
     groups = list(df.loc[valid_mask].groupby(["suffix", "media_size"], dropna=False))
     log(f"Fast mode file-size groups: {len(groups):,}")
 
@@ -175,45 +184,71 @@ def assign_frame_counts_fast(df, max_workers):
             f"Group suffix={suffix} size={media_size} files={len(group):,} "
             f"samples={len(sample_paths)}"
         )
-        sample_counts = [get_frame_count(path) for path in sample_paths]
-        valid_counts = [count for count in sample_counts if count is not None]
-        unique_counts = sorted(set(valid_counts))
+        sample_metadata = [get_media_metadata(path) for path in sample_paths]
+        sample_counts = [item["frame_count"] for item in sample_metadata]
+        sample_fps = [item["fps"] for item in sample_metadata]
 
-        if len(unique_counts) == 1 and len(valid_counts) == len(sample_counts):
-            frame_count = unique_counts[0]
+        if suffix in IMAGE_SUFFIXES and metadata_values_agree(sample_counts):
+            frame_count = sample_counts[0]
             df.loc[group_index, "frame_count"] = frame_count
+            df.loc[group_index, "fps"] = None
             log(
                 f"Assigned frame_count={frame_count} to "
                 f"{len(group):,} files in group."
             )
             continue
 
+        if metadata_values_agree(sample_counts) and fps_values_agree(sample_fps):
+            frame_count = sample_counts[0]
+            fps = sample_fps[0]
+            df.loc[group_index, "frame_count"] = frame_count
+            df.loc[group_index, "fps"] = fps
+            log(
+                f"Assigned frame_count={frame_count}, fps={fps:.6g} to "
+                f"{len(group):,} files in group."
+            )
+            continue
+
         log(
-            f"Measuring all files in group; sampled frame counts: "
-            f"{sample_counts}"
+            "Measuring all files in group; sampled metadata: "
+            f"{sample_metadata}"
         )
         workers = max(1, min(max_workers, len(group)))
         with ThreadPoolExecutor(max_workers=workers) as executor:
             results = list(
                 tqdm(
-                    executor.map(get_frame_count, group["media_path"].tolist()),
+                    executor.map(get_media_metadata, group["media_path"].tolist()),
                     total=len(group),
-                    desc=f"Frames {suffix} {media_size}",
+                    desc=f"Metadata {suffix} {media_size}",
                 )
             )
-        df.loc[group_index, "frame_count"] = results
-        count_summary = pd.Series(results).value_counts(dropna=False).to_dict()
+        df.loc[group_index, "frame_count"] = [item["frame_count"] for item in results]
+        df.loc[group_index, "fps"] = [item["fps"] for item in results]
+        count_summary = pd.Series([item["frame_count"] for item in results]).value_counts(dropna=False).to_dict()
+        fps_summary = pd.Series([item["fps"] for item in results]).value_counts(dropna=False).to_dict()
         log(f"Measured group frame counts: {count_summary}")
+        log(f"Measured group FPS values: {fps_summary}")
 
     missing_counts = int(df["frame_count"].isna().sum())
     if missing_counts:
         log(f"Files with missing frame_count: {missing_counts:,}")
+    video_mask = ~df["suffix"].isin(IMAGE_SUFFIXES)
+    missing_fps = int((video_mask & df["fps"].isna()).sum())
+    if missing_fps:
+        log(f"Video files with missing fps: {missing_fps:,}")
+    fps_summary = df.loc[video_mask, "fps"].value_counts(dropna=False).to_dict()
+    if fps_summary:
+        log(f"FPS summary: {fps_summary}")
     return df
-def expand_frames(df, fps):
+
+
+def expand_frames(df):
     df = df.copy()
     before_rows = len(df)
     df = df.dropna(subset=["frame_count"])
     df = df[df["frame_count"] > 0].copy()
+    video_mask = ~df["suffix"].isin(IMAGE_SUFFIXES)
+    df = df[(~video_mask) | df["fps"].apply(valid_fps)].copy()
     log(f"Files retained for frame expansion: {len(df):,} / {before_rows:,}")
     if df.empty:
         return df
@@ -222,7 +257,12 @@ def expand_frames(df, fps):
     log(f"Total frames to expand: {total_frames:,}")
     df = df.loc[df.index.repeat(df["frame_count"])].copy()
     df["frame"] = df.groupby("media_path").cumcount()
-    df["times"] = df["media_time"] + pd.to_timedelta(df["frame"] / fps, unit="s")
+    elapsed_seconds = pd.Series(0.0, index=df.index)
+    fps_mask = df["fps"].apply(valid_fps)
+    elapsed_seconds.loc[fps_mask] = (
+        df.loc[fps_mask, "frame"].astype(float) / df.loc[fps_mask, "fps"].astype(float)
+    )
+    df["times"] = df["media_time"] + pd.to_timedelta(elapsed_seconds, unit="s")
     return df
 def process_media_details(file_path):
     media_name = Path(file_path).stem
@@ -310,27 +350,14 @@ def extract_details_dataframe(media_dir, max_workers, suffixes=None, file_limit=
 def main(argv=None):
     parser = argparse.ArgumentParser(
         description="Build media CSV using fast modal-size logic or full per-frame timestamp extraction.",
-        epilog=(
-            "Template: --base-media-dir /proj/nes-lter/Stingray/data "
-            "--video-type ISIIS1|ISIIS2. For Slurm, prefer explicit "
-            "--media-dir, --fps, and --out-dir."
-        ),
     )
     parser.add_argument("--cruise", required=True, help="Cruise to process")
     parser.add_argument(
-        "--video-type",
-        choices=list(VIDEO_TYPE_CONFIG.keys()),
-        help="Optional camera preset: ISIIS1 or ISIIS2",
-    )
-    parser.add_argument(
         "--media-dir",
-        default=None,
-        help="Explicit media directory. Preferred for Slurm wrappers.",
+        required=True,
+        help="Directory containing image or video files.",
     )
-    parser.add_argument("--base-media-dir", default=None)
-    parser.add_argument("--folder-name", default=None)
-    parser.add_argument("--out-dir", default=None)
-    parser.add_argument("--fps", type=float, default=None)
+    parser.add_argument("--out-dir", required=True)
     parser.add_argument("--max-workers", type=int, default=DEFAULT_MAX_WORKERS)
     parser.add_argument("--file-limit", type=int, default=None)
     parser.add_argument("--suffix", nargs="+", default=None)
@@ -354,29 +381,14 @@ def main(argv=None):
     )
     log_command_options(logger, args)
     t0 = time.time()
-    fps, out_dir, folder_name = resolve_config(
-        args.video_type,
-        args.fps,
-        args.out_dir,
-        args.folder_name,
-    )
+    out_dir = args.out_dir
     os.makedirs(out_dir, exist_ok=True)
     cruise = args.cruise
-    if args.media_dir is not None:
-        media_dir = Path(args.media_dir)
-    else:
-        if args.base_media_dir is None:
-            raise ValueError("Provide --media-dir or --base-media-dir.")
-        if folder_name is None:
-            raise ValueError("Provide --folder-name, or use --video-type with a folder preset.")
-        media_dir = Path(args.base_media_dir) / f"NESLTER_{cruise}" / folder_name
+    media_dir = Path(args.media_dir)
     if not media_dir.is_dir():
         raise FileNotFoundError(f"Media directory not found: {media_dir}")
     log(f"Processing cruise: {cruise}")
-    log(f"Video type: {args.video_type}")
-    log(f"Source folder name: {folder_name}")
     log(f"Media dir: {media_dir}")
-    log(f"FPS: {fps}")
     log(f"Output dir: {out_dir}")
     log(f"SLURM_CPUS_PER_TASK: {SLURM_CPUS}")
     log(f"Requested max workers: {args.max_workers}")
@@ -402,8 +414,8 @@ def main(argv=None):
             log(f"No files found in {media_dir}")
             return
         log(f"Rows in base dataframe: {len(df):,}")
-        df = assign_frame_counts_fast(df, args.max_workers)
-        df_out = expand_frames(df, fps)
+        df = assign_media_metadata_fast(df, args.max_workers)
+        df_out = expand_frames(df)
         mode_name = "fast"
     if df_out.empty:
         log(f"No frame data generated for {cruise}")

@@ -88,8 +88,7 @@ stingray images frame-timestamp \
   --work-dir /path/to/stingray/data \
   --cruise CRUISE_ID \
   --media-dir /path/to/CAMERA_MEDIA_DIR \
-  --out-dir /path/to/stingray/data/media_list/CAMERA_STREAM \
-  --fps FPS_VALUE
+  --out-dir /path/to/stingray/data/media_list/CAMERA_STREAM
 ```
 
 Download CTD reference files:

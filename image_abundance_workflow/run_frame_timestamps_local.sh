@@ -14,7 +14,6 @@ WORK_DIR="/mnt/vast/nes-lter/Stingray/data"
 CRUISE="CRUISE_ID"
 MEDIA_DIR="CHANGEME_MEDIA_DIR"
 OUT_DIR="/mnt/vast/nes-lter/Stingray/data/media_list/CAMERA_STREAM"
-FPS="FPS_VALUE"
 DETAILS="0"  # 1 = full per-frame timestamp extraction; 0 = fast frame count
 
 # Optional filters. Leave FILE_LIMIT empty for full production runs.
@@ -49,7 +48,6 @@ echo "  WORK_DIR=$WORK_DIR"
 echo "  CRUISE=$CRUISE"
 echo "  MEDIA_DIR=$MEDIA_DIR"
 echo "  OUT_DIR=$OUT_DIR"
-echo "  FPS=$FPS"
 echo "  DETAILS=$DETAILS"
 echo "  FILE_LIMIT=$FILE_LIMIT"
 echo "  SUFFIXES=${SUFFIXES[*]}"
@@ -58,7 +56,6 @@ require_dir "WORK_DIR" "$WORK_DIR"
 require_dir "MEDIA_DIR" "$MEDIA_DIR"
 require_value "OUT_DIR" "$OUT_DIR"
 require_value "CRUISE" "$CRUISE"
-require_value "FPS" "$FPS"
 
 JOB_TMP="${TMPDIR:-/tmp}"
 MAX_WORKERS="${MAX_WORKERS:-$(nproc)}"
@@ -77,7 +74,6 @@ FRAME_ARGS=(
     --cruise "$CRUISE"
     --media-dir "$MEDIA_DIR"
     --out-dir "$OUT_DIR"
-    --fps "$FPS"
     --max-workers "$MAX_WORKERS"
     --suffix "${SUFFIXES[@]}"
     --no-file-log

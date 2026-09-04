@@ -26,7 +26,6 @@ MERGE_LABELS="1"     # 1 = merge LABEL_DIRS into DETECTIONS_CSV; 0 = use existin
 BUILD_MEDIA_CSV="0"  # 1 = build media CSV before abundance; 0 = use existing MEDIA_CSV
 MEDIA_DIR="CHANGEME_MEDIA_DIR"
 MEDIA_OUT_DIR="/mnt/vast/nes-lter/Stingray/data/media_list/CAMERA_STREAM"
-FPS="FPS_VALUE"
 DETAILS="0"          # 1 = full per-frame timestamp extraction; 0 = fast frame count
 FILE_LIMIT=""
 SUFFIXES=(".avi" ".mp4" ".png" ".tiff")
@@ -88,7 +87,6 @@ echo "  MERGE_LABELS=$MERGE_LABELS"
 echo "  BUILD_MEDIA_CSV=$BUILD_MEDIA_CSV"
 echo "  MEDIA_DIR=$MEDIA_DIR"
 echo "  MEDIA_OUT_DIR=$MEDIA_OUT_DIR"
-echo "  FPS=$FPS"
 echo "  DETAILS=$DETAILS"
 echo "  FILE_LIMIT=$FILE_LIMIT"
 echo "  SUFFIXES=${SUFFIXES[*]}"
@@ -110,7 +108,6 @@ if [[ "$BUILD_MEDIA_CSV" == "1" ]]; then
     require_dir "MEDIA_DIR" "$MEDIA_DIR"
     require_value "MEDIA_OUT_DIR" "$MEDIA_OUT_DIR"
     require_value "CRUISE" "$CRUISE"
-    require_value "FPS" "$FPS"
 else
     require_file "MEDIA_CSV" "$MEDIA_CSV"
 fi
@@ -151,7 +148,6 @@ if [[ "$BUILD_MEDIA_CSV" == "1" ]]; then
         --cruise "$CRUISE"
         --media-dir "$MEDIA_DIR"
         --out-dir "$MEDIA_OUT_DIR"
-        --fps "$FPS"
         --max-workers "$JOBS"
         --suffix "${SUFFIXES[@]}"
         --no-file-log
