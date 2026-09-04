@@ -1,7 +1,7 @@
 # stingraytools
 
-Sensor-processing, image-metadata, YOLO abundance, CSV I/O, profile, and
-statistical tools for NES-LTER Stingray / ISIIS data.
+Sensor-processing, image-metadata, image abundance, CSV I/O, profile, and
+statistical tools for NES-LTER Stingray data.
 
 ## Installation
 
@@ -57,7 +57,7 @@ The default workspace layout is:
 ```text
 stingray_workspace/
   sensor_data/          raw CTD, DVL, fluorometer, GPS, oxygen, PAR, and SUNA folders
-  media_list/           optional ISIIS1 and ISIIS2 frame metadata
+  media_list/           optional camera-stream frame metadata
   suna_calibration/     optional cruise-specific SUNA calibration files
   indexes/              generated sensor-file indexes
   logs/                 processing logs
@@ -93,11 +93,11 @@ ls sensor_data
 # Process one cruise into dash_data/data/stingray/.
 stingray sensors merge \
   --work-dir . \
-  --cruise EN706 \
-  --start 2023-08-07 \
-  --end 2023-08-14 \
-  --cal-year 2021 \
-  --time-bin-seconds 5
+  --cruise CRUISE_ID \
+  --start START_DATE \
+  --end END_DATE \
+  --cal-year CALIBRATION_YEAR \
+  --time-bin-seconds BIN_WIDTH_SECONDS
 
 # Compile CTD reference files into dash_data/data/ctd/ when needed.
 stingray ctd download \
@@ -114,7 +114,7 @@ DASH_DATA_DIR=/mnt/stingray_share/dash_data \
 # Serve the generated dashboard files with the released container image.
 # STINGRAY_DEFAULT_DATASET pins the initial dataset selector to the processing output.
 DASH_DATA_DIR=/mnt/stingray_share/dash_data \
-STINGRAY_DEFAULT_DATASET=stingray \
+STINGRAY_DEFAULT_DATASET=DATASET_NAME \
   docker compose -f compose.ghcr.yml up -d --pull always
 ```
 
@@ -144,10 +144,10 @@ cd "/mnt/c/path/to/stingray_workspace"
 # Process or reprocess the cruise data into dash_data/data/stingray/.
 stingray sensors merge \
   --work-dir . \
-  --cruise EN706 \
-  --start 2023-08-07 \
-  --end 2023-08-14 \
-  --time-bin-seconds 5
+  --cruise CRUISE_ID \
+  --start START_DATE \
+  --end END_DATE \
+  --time-bin-seconds BIN_WIDTH_SECONDS
 
 # Install the separate dashboard package when local dashboard review is needed.
 pip install -e "./packages/stingray-dashboard"
@@ -155,7 +155,7 @@ pip install -e "./packages/stingray-dashboard"
 # Run the dashboard directly from the Python environment for local inspection.
 stingray-dashboard \
   --work-dir dash_data \
-  --default-dataset stingray \
+  --default-dataset DATASET_NAME \
   --host 127.0.0.1 \
   --port 8050
 ```
@@ -165,25 +165,25 @@ copying the workspace to a server.
 
 ## Process one cruise
 
-The following command processes cruise `EN706` from August 7 through August
-14, 2023. Both `--start` and `--end` are inclusive calendar dates. Sensor
-observations are aggregated into bins of width \(\Delta t = 5\) seconds.
+The following command processes one cruise. Both `--start` and `--end` are
+inclusive calendar dates. Sensor observations are aggregated into bins of width
+\(\Delta t\) seconds.
 
 ```bash
 stingray sensors merge \
   --work-dir . \
-  --cruise EN706 \
-  --start 2023-08-07 \
-  --end 2023-08-14 \
-  --cal-year 2021 \
-  --time-bin-seconds 5
+  --cruise CRUISE_ID \
+  --start START_DATE \
+  --end END_DATE \
+  --cal-year CALIBRATION_YEAR \
+  --time-bin-seconds BIN_WIDTH_SECONDS
 ```
 
 ### Common options
 
 ```text
 --cruise CRUISE
-    Cruise ID, e.g. EN706.
+    Cruise ID.
 
 --start START
     Inclusive cruise start date in YYYY-MM-DD format.
@@ -210,8 +210,8 @@ stingray sensors merge \
     Generated sensor-file index directory. Default: WORK_DIR/indexes.
 
 --media-list-dirs MEDIA_LIST_DIRS ...
-    Media-list directories for ISIIS image links. Defaults to the ISIIS1 and
-    ISIIS2 directories below WORK_DIR/media_list.
+    Media-list directories for image links. Defaults to directories below
+    WORK_DIR/media_list.
 
 --suna-cal-file SUNA_CAL_FILE
     Optional SUNA calibration file for TSP-corrected nitrate.
@@ -229,9 +229,9 @@ stingray sensors merge \
 ## Batch-process cruises
 
 The following workflow retrieves the NES-LTER cruise table, normalizes its date
-fields, selects cruises beginning on or after January 1, 2023, and runs the
-sensor merge for each cruise. When an end date is unavailable, it assumes a
-seven-day cruise.
+fields, selects cruises beginning on or after a configured cutoff date, and runs
+the sensor merge for each cruise. When an end date is unavailable, it applies a
+configured fallback interval.
 
 ```python
 import subprocess
@@ -239,6 +239,11 @@ from datetime import timedelta
 
 import pandas as pd
 
+
+MIN_START_DATE = "START_DATE"
+FALLBACK_DURATION_DAYS = 7
+CALIBRATION_YEAR = "CALIBRATION_YEAR"
+BIN_WIDTH_SECONDS = "BIN_WIDTH_SECONDS"
 
 # Load the authoritative NES-LTER cruise metadata table.
 cruises = pd.read_csv(
@@ -255,14 +260,14 @@ cruises["end_time"] = pd.to_datetime(
     errors="coerce",
 ).dt.tz_localize(None)
 
-# Keep valid cruises in chronological order, beginning with calendar year 2023.
+# Keep valid cruises in chronological order after the configured cutoff.
 cruises = cruises.dropna(subset=["start_time"]).sort_values("start_time")
-cruises = cruises[cruises["start_time"] >= "2023-01-01"].copy()
+cruises = cruises[cruises["start_time"] >= MIN_START_DATE].copy()
 cruises["name"] = cruises["name"].str.upper()
 
-# Estimate a seven-day interval when the API has no recorded cruise end date.
+# Estimate a fallback interval when the API has no recorded cruise end date.
 cruises["end_time"] = cruises["end_time"].fillna(
-    cruises["start_time"] + timedelta(days=7)
+    cruises["start_time"] + timedelta(days=FALLBACK_DURATION_DAYS)
 )
 
 # Process each cruise independently so failures identify a specific cruise.
@@ -271,7 +276,7 @@ for cruise in cruises.itertuples():
     start = cruise.start_time.strftime("%Y-%m-%d")
     end = cruise.end_time.strftime("%Y-%m-%d")
 
-    # Each output row represents a time bin of width Delta t = 5 seconds.
+    # Each output row represents one configured time bin.
     command = [
         "stingray",
         "sensors",
@@ -285,9 +290,9 @@ for cruise in cruises.itertuples():
         "--end",
         end,
         "--cal-year",
-        "2021",
+        CALIBRATION_YEAR,
         "--time-bin-seconds",
-        "5",
+        BIN_WIDTH_SECONDS,
     ]
 
     # Report the active interval before launching the processing subprocess.

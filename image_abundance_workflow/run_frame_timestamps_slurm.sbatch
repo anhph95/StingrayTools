@@ -28,10 +28,10 @@ INSTALL_ENV="0"  # 1 = reinstall environment from Git; 0 = create if missing, ot
 
 WORK_DIR="/proj/nes-lter/Stingray/data"
 VENV_DIR="/proj/nes-lter/Stingray/data/envs/stingraytools-frame-timestamps"
-CRUISE="EN706"
+CRUISE="CRUISE_ID"
 MEDIA_DIR="CHANGEME_MEDIA_DIR"
-OUT_DIR="/proj/nes-lter/Stingray/data/media_list/ISIIS1"
-FPS="15"
+OUT_DIR="/proj/nes-lter/Stingray/data/media_list/CAMERA_STREAM"
+FPS="FPS_VALUE"
 DETAILS="0"  # 1 = full per-frame timestamp extraction; 0 = fast frame count
 
 # Optional filters. Leave FILE_LIMIT empty for full production runs.

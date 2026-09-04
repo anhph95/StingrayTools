@@ -1,8 +1,8 @@
 # StingrayTools
 
-StingrayTools contains processing workflows for the NES-LTER Stingray / ISIIS
-tow sled. The workflows can run independently or as one data pipeline from raw
-sensor files, image metadata, YOLO detections, and CTD reference data to
+StingrayTools contains processing workflows for the NES-LTER Stingray tow sled.
+The workflows can run independently or as one data pipeline from raw
+sensor files, image metadata, ML detections, and CTD reference data to
 dashboard-ready CSV products.
 
 [![DOI](https://zenodo.org/badge/946902610.svg)](https://doi.org/10.5281/zenodo.15025961)
@@ -10,7 +10,7 @@ dashboard-ready CSV products.
 ## Packages
 
 - [stingraytools](packages/stingraytools/README.md): sensor processing, image
-  metadata, YOLO abundance, CTD compilation, shared time/grid utilities, and
+  metadata, image abundance, CTD compilation, shared time/grid utilities, and
   command-line workflows.
 - [stingray-dashboard](packages/stingray-dashboard/README.md): Dash application
   and Docker deployment for dashboard-ready datasets.
@@ -22,14 +22,14 @@ The main processing path is:
 ```text
 raw Stingray sensor files
   -> stingray sensors merge
-  -> dashboard_data/data/stingray_NESLTER/
+  -> dashboard_data/data/SENSOR_DATASET/
 
-raw ISIIS image or video files
+raw image or video files
   -> stingray images frame-timestamp
-  -> media_list/ISIIS1/ or media_list/ISIIS2/
+  -> media_list/CAMERA_STREAM/
 
-YOLO inference label files
-  -> yolo_abundance_workflow/merge_yolo_labels.sh
+ML detection label files
+  -> image_abundance_workflow/merge_detection_labels.sh
   -> stingray images abundance
   -> dashboard_data/data/shadowgraph/
 
@@ -38,8 +38,8 @@ NES-LTER CTD API data
   -> dashboard_data/data/ctd/
 ```
 
-YOLO inference is run by the external model workflow. This repository provides
-the post-inference merge and abundance workflow.
+ML inference is run by an external model workflow. This repository provides
+post-inference detection merge and abundance workflows.
 
 ## Installation
 
@@ -74,11 +74,11 @@ Merge one cruise of Stingray sensor data:
 ```bash
 stingray sensors merge \
   --work-dir /path/to/stingray/data \
-  --cruise EN706 \
-  --start 2023-08-07 \
-  --end 2023-08-14 \
-  --cal-year 2021 \
-  --time-bin-seconds 5
+  --cruise CRUISE_ID \
+  --start START_DATE \
+  --end END_DATE \
+  --cal-year CALIBRATION_YEAR \
+  --time-bin-seconds BIN_WIDTH_SECONDS
 ```
 
 Build image/video frame timestamps:
@@ -86,10 +86,10 @@ Build image/video frame timestamps:
 ```bash
 stingray images frame-timestamp \
   --work-dir /path/to/stingray/data \
-  --cruise EN706 \
-  --media-dir /path/to/NESLTER_EN706/Basler_avA2300-25gm \
-  --out-dir /path/to/stingray/data/media_list/ISIIS1 \
-  --fps 15
+  --cruise CRUISE_ID \
+  --media-dir /path/to/CAMERA_MEDIA_DIR \
+  --out-dir /path/to/stingray/data/media_list/CAMERA_STREAM \
+  --fps FPS_VALUE
 ```
 
 Download CTD reference files:
@@ -100,14 +100,14 @@ stingray ctd download \
   --skip-existing
 ```
 
-Run post-inference YOLO abundance processing:
+Run post-inference image abundance processing:
 
 ```bash
-sbatch yolo_abundance_workflow/run_slurm.sbatch
+sbatch image_abundance_workflow/run_slurm.sbatch
 ```
 
 Workflow runner details are in
-[yolo_abundance_workflow/README.md](yolo_abundance_workflow/README.md).
+[image_abundance_workflow/README.md](image_abundance_workflow/README.md).
 
 ## Development
 

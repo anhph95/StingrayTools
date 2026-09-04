@@ -4,7 +4,6 @@ from __future__ import annotations
 import argparse
 import logging
 import os
-import re
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -28,120 +27,57 @@ def require_columns(df: pd.DataFrame, columns: list[str], source: Path) -> None:
         raise ValueError(f"{source} is missing required columns: {missing_str}")
 
 
-def clean_yaml_value(value: str) -> str:
-    value = value.strip()
-    if value.startswith(("'", '"')) and value.endswith(("'", '"')):
-        value = value[1:-1]
-    return value
-
-
-def load_class_names(data_yaml: Path) -> dict[int, str]:
-    """Read the simple YOLO data.yaml names section without requiring PyYAML."""
-    lines = data_yaml.read_text(encoding="utf-8").splitlines()
-    names_started = False
-    names_by_id: dict[int, str] = {}
-    names_list: list[str] = []
-
-    for raw_line in lines:
-        line_without_comment = raw_line.split("#", 1)[0].rstrip()
-        stripped = line_without_comment.strip()
-        if not stripped:
-            continue
-
-        if not names_started:
-            if stripped == "names:":
-                names_started = True
-            continue
-
-        if not raw_line.startswith((" ", "\t", "-")) and stripped != "names:":
-            break
-
-        list_match = re.match(r"^-\s*(.+)$", stripped)
-        if list_match:
-            names_list.append(clean_yaml_value(list_match.group(1)))
-            continue
-
-        dict_match = re.match(r"^(\d+)\s*:\s*(.+)$", stripped)
-        if dict_match:
-            class_id = int(dict_match.group(1))
-            names_by_id[class_id] = clean_yaml_value(dict_match.group(2))
-
-    if names_by_id:
-        return names_by_id
-    if names_list:
-        return dict(enumerate(names_list))
-    raise ValueError(f"{data_yaml} does not contain a supported names section.")
-
-
 @dataclass(frozen=True)
 class Config:
-    yolo_csv: Path
-    data_yaml: Path
+    detections_csv: Path
+    class_map_csv: Path
     sensor_csv: Path
     media_csv: Path
     out_csv: Path
     score_thresh: float
     bin_width: float
-    image_width: int
-    image_height: int
-    um_per_pixel: float
     volume_per_frame: float
     add_ci: bool
 
 
 def process(config: Config) -> pd.DataFrame:
-    """Convert YOLO detections into time-binned abundance merged onto sensor data."""
-    logger.info("Loading YOLO CSV...")
-    df = pd.read_csv(config.yolo_csv, sep=" ")
+    """Convert image detections into time-binned abundance merged onto sensor data."""
+    logger.info("Loading detection CSV...")
+    df = pd.read_csv(config.detections_csv)
     require_columns(
         df,
         [
-            "filename",
+            "media",
+            "frame",
             "class_id",
-            "x_center",
-            "y_center",
-            "width",
-            "height",
             "confidence",
         ],
-        config.yolo_csv,
+        config.detections_csv,
     )
 
-    logger.info("Loading class dictionary...")
-    class_dict = load_class_names(config.data_yaml)
-
-    df[["media", "frame"]] = df["filename"].str.extract(r"^(.*)_(\d+)\.txt$")
-    df["frame"] = df["frame"].astype(int)
-
-    df["score"] = df["confidence"]
-    df["x"] = df["x_center"]
-    df["y"] = df["y_center"]
-    df["class_idx"] = df["class_id"].astype(int)
-    df["class"] = df["class_idx"].map(class_dict)
-    if df["class"].isna().any():
-        missing_ids = sorted(df.loc[df["class"].isna(), "class_idx"].unique())
-        raise ValueError(f"Class IDs missing from data.yaml names section: {missing_ids}")
-
-    df["area"] = (
-        df["width"]
-        * df["height"]
-        * config.image_width
-        * config.image_height
-        * config.um_per_pixel
-        * 0.001
-    )
-    df["size"] = (
-        np.maximum(
-            df["width"] * config.image_width,
-            df["height"] * config.image_height,
+    logger.info("Loading class map CSV...")
+    class_map_df = pd.read_csv(config.class_map_csv)
+    require_columns(class_map_df, ["class_id", "class"], config.class_map_csv)
+    class_map_df = class_map_df[["class_id", "class"]].drop_duplicates()
+    if class_map_df["class_id"].duplicated().any():
+        duplicated_ids = sorted(
+            class_map_df.loc[class_map_df["class_id"].duplicated(), "class_id"]
+            .astype(int)
+            .unique()
         )
-        * config.um_per_pixel
-        * 0.001
-    )
+        raise ValueError(f"{config.class_map_csv} has duplicate class_id values: {duplicated_ids}")
+
+    df["frame"] = df["frame"].astype(int)
+    df["class_id"] = df["class_id"].astype(int)
+    df["score"] = df["confidence"]
+    df = df.merge(class_map_df, on="class_id", how="left")
+    if df["class"].isna().any():
+        missing_ids = sorted(df.loc[df["class"].isna(), "class_id"].unique())
+        raise ValueError(f"Class IDs missing from class map CSV: {missing_ids}")
 
     df = (
         df.loc[df["score"] >= config.score_thresh]
-        .sort_values(["media", "frame", "x", "y"])
+        .sort_values(["media", "frame", "class"])
         .reset_index(drop=True)
     )
 
@@ -241,34 +177,34 @@ def process(config: Config) -> pd.DataFrame:
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Convert YOLO shadowgraph detections to time-binned abundance."
+        description="Convert image detections to time-binned abundance."
     )
 
     required = parser.add_argument_group("required file paths")
     required.add_argument(
-        "--yolo-csv",
+        "--detections-csv",
         required=True,
-        help="YOLO concatenated results CSV, e.g. concatenated_results.csv",
+        help="Detection table with media, frame, class_id, and confidence columns.",
     )
     required.add_argument(
-        "--data-yaml",
+        "--class-map-csv",
         required=True,
-        help="YOLO data.yaml file, e.g. training_data_v3/data.yaml",
+        help="Class map table with class_id and class columns.",
     )
     required.add_argument(
         "--sensor-csv",
         required=True,
-        help="Sensor CSV to merge onto, e.g. dash_data/data/stingray_timebinned/20250424_AR88.csv",
+        help="Sensor CSV to merge onto.",
     )
     required.add_argument(
         "--media-csv",
         required=True,
-        help="Media/frame timestamp CSV, e.g. media_list/ISIIS1/20250418_AR88.csv",
+        help="Media/frame timestamp CSV.",
     )
     required.add_argument(
         "--out-csv",
         required=True,
-        help="Output CSV path, e.g. shadowgraph_concentration.csv",
+        help="Output CSV path.",
     )
 
     options = parser.add_argument_group("processing options")
@@ -284,9 +220,6 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         required=True,
         help="Time-bin width in seconds",
     )
-    options.add_argument("--image-width", type=int, required=True)
-    options.add_argument("--image-height", type=int, required=True)
-    options.add_argument("--um-per-pixel", type=float, required=True)
     options.add_argument("--volume-per-frame", type=float, required=True)
     options.add_argument("--add-ci", action="store_true", help="Add Poisson confidence intervals")
     options.add_argument(
@@ -300,16 +233,13 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 def config_from_args(args: argparse.Namespace) -> Config:
     return Config(
-        yolo_csv=Path(os.path.expanduser(args.yolo_csv)),
-        data_yaml=Path(os.path.expanduser(args.data_yaml)),
+        detections_csv=Path(os.path.expanduser(args.detections_csv)),
+        class_map_csv=Path(os.path.expanduser(args.class_map_csv)),
         sensor_csv=Path(os.path.expanduser(args.sensor_csv)),
         media_csv=Path(os.path.expanduser(args.media_csv)),
         out_csv=Path(os.path.expanduser(args.out_csv)),
         score_thresh=args.score_thresh,
         bin_width=args.bin_width,
-        image_width=args.image_width,
-        image_height=args.image_height,
-        um_per_pixel=args.um_per_pixel,
         volume_per_frame=args.volume_per_frame,
         add_ci=args.add_ci,
     )
