@@ -29,7 +29,7 @@ Options:
 
 Example:
   merge_yolo_labels.sh \
-    --output-csv /user/huy.pham/en706_yolo_concatenated_results.csv \
+    --output-csv /path/to/en706_yolo_concatenated_results.csv \
     --jobs 32 \
     /proj/omics/sosik/yolozone/yolo-run-1/gpu0/labels \
     /proj/omics/sosik/yolozone/yolo-run-1/gpu1/labels \

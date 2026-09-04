@@ -111,10 +111,11 @@ Workflow runner details are in
 
 ## Development
 
-Use the configured WSL2 environment for local development:
+Install the development dependency set from a local checkout:
 
 ```bash
-source /home/anhph/venv/stingray/bin/activate
+python -m venv .venv
+source .venv/bin/activate
 pip install -e ".[dev]"
 ```
 
@@ -128,4 +129,3 @@ python -m pytest packages/stingray-dashboard/tests
 ## License
 
 StingrayTools is distributed under the MIT License. See [LICENSE](LICENSE).
-

@@ -131,11 +131,11 @@ Windows-mounted drive. It keeps the source checkout editable while using the
 same workspace layout as the shipboard deployment.
 
 ```bash
-# Activate the WSL2 virtual environment used for StingrayTools development.
-source /home/anhph/venv/stingray/bin/activate
+# Create and activate a development environment.
+python -m venv .venv
+source .venv/bin/activate
 
 # Install the full Stingray CLI environment from the local checkout so code edits are live.
-cd "/mnt/c/Users/anhph/OneDrive - Woods Hole Oceanographic Institution/stingraytools"
 pip install -e ".[dev]"
 
 # Enter the mounted data workspace, not the source repository.
