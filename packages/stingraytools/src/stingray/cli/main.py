@@ -10,33 +10,31 @@ COMMANDS = {
         "help": "Merge sensor data",
         "target": "stingray.cli.sensors:main",
     },
-    ("dashboard", "run"): {
-        "help": "Run Dash dashboard",
-        "target": "stingray_dashboard.app:main",
-    },
     ("images", "abundance"): {
         "help": "Compute image abundance",
         "target": "stingray.images.abundance:main",
     },
     ("images", "frame-timestamp"): {
         "help": "Build frame timestamp CSV",
-        "target": "stingray.images.frame_timestamp:main",
+        "target": "stingray.images.build_frame_timestamps:main",
     },
     ("images", "generate-training"): {
         "help": "Generate YOLO training data",
-        "target": "stingray.images.generate_training:main",
+        "target": "stingray.images.generate_yolo_training:main",
     },
-    ("images", "tator-links"): {
-        "help": "Add Tator annotation links",
-        "target": "stingray.images.get_tator_link:main",
-    },
+    # Legacy Tator tool retained in stingray.images.add_tator_links.
+    # Re-enable this command if Tator link generation returns to the workflow.
+    # ("images", "tator-links"): {
+    #     "help": "Add Tator annotation links",
+    #     "target": "stingray.images.add_tator_links:main",
+    # },
     ("images", "add-media"): {
         "help": "Add media metadata to merged sensor CSV",
         "target": "stingray.images.add_media:main",
     },
     ("ctd", "download"): {
-        "help": "Download CTD cruise data",
-        "target": "ctdtools.download:main",
+        "help": "Download NES-LTER CTD cruise data",
+        "target": "stingray.ctd.download:main",
     },
 }
 

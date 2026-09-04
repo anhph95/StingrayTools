@@ -225,14 +225,19 @@ def main(argv=None) -> None:
 
     parser.add_argument(
         "--out-path",
-        default=None,
-        help="Output CSV path. Defaults to updating merged_csv in place.",
+        required=True,
+        help="Output CSV path.",
     )
 
     parser.add_argument(
         "--overwrite",
         action="store_true",
         help="Replace existing populated media columns if present.",
+    )
+    parser.add_argument(
+        "--no-file-log",
+        action="store_true",
+        help="Disable Stingray log files and write logs only to the console.",
     )
 
     args = parser.parse_args(argv)
@@ -241,6 +246,7 @@ def main(argv=None) -> None:
     setup_logging(
         log_dir=work_dir / "logs",
         name="stingray_images_add_media",
+        file=not args.no_file_log,
     )
     log_command_options(logger, args)
 

@@ -1,16 +1,19 @@
-# For all scripts
-numpy
-pandas
-matplotlib
-scipy
-
-# For dashapp
-plotly
-dash
-
-# # For shadowgraph list
-# opencv-python
-# tator # Only if working with Tator
-
-# # For jupyter notebooks
-# jupyter
+# Root requirements template.
+#
+# Prefer installing by job with pyproject extras:
+#   pip install ".[sensors]"
+#   pip install ".[images]"
+#   pip install ".[ctd]"
+#   pip install ".[abundance]"
+#
+# For the complete Stingray CLI dependency set:
+#   pip install ".[pipeline]"
+#
+# For local Stingray CLI development:
+#   pip install -e ".[dev]"
+#
+# Dashboard is a separate package:
+#   pip install -e "./packages/stingray-dashboard"
+#
+# Legacy Tator support is retained but not installed by default:
+#   pip install ".[legacy-tator]"

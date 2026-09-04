@@ -1,16 +1,20 @@
-name: venv  # Change this to your desired environment name
+name: stingraytools
 channels:
   - conda-forge
   - defaults
 dependencies:
-  - python  # Ensures Python is installed
-  - numpy
-  - pandas
-  - matplotlib
-  - scipy
-  - plotly
-  - dash
-  # Uncomment below if needed
-  # - opencv  # For shadowgraph list
-  # - tator   # Only if working with Tator
-  # - jupyter # Only for Jupyter notebooks
+  - python>=3.10
+  - pip
+  # Install one job extra after creating the environment:
+  #   pip install ".[sensors]"
+  #   pip install ".[images]"
+  #   pip install ".[ctd]"
+  #   pip install ".[abundance]"
+  # For the complete Stingray CLI dependency set:
+  #   pip install ".[pipeline]"
+  # For local Stingray CLI development:
+  #   pip install -e ".[dev]"
+  # Dashboard is a separate package:
+  #   pip install -e "./packages/stingray-dashboard"
+  # Legacy Tator support is retained but not installed by default:
+  #   pip install ".[legacy-tator]"

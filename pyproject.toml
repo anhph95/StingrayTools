@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "stingraytools"
-version = "3.0.0"
-description = "NES-LTER Stingray data processing, visualization, and dashboard tools"
+version = "3.1.0"
+description = "NES-LTER Stingray sensor and image processing tools"
 readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"
@@ -20,24 +20,15 @@ keywords = [
     "ISIIS",
     "oceanography",
     "sensor-processing",
-    "dashboard",
+    "image-processing",
+    "ctd",
 ]
 classifiers = [
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
     "Operating System :: OS Independent",
 ]
-dependencies = [
-    "dash>=3",
-    "matplotlib>=3.8",
-    "numba>=0.59",
-    "numpy>=1.26",
-    "pandas>=2.0",
-    "plotly>=5",
-    "PyYAML>=6",
-    "scipy>=1.11",
-    "tqdm>=4.64",
-]
+dependencies = []
 
 [project.urls]
 Homepage = "https://github.com/anhph95/StingrayTools"
@@ -46,40 +37,65 @@ Issues = "https://github.com/anhph95/StingrayTools/issues"
 
 [project.scripts]
 stingray = "stingray.cli.main:main"
-stingray-dashboard = "stingray_dashboard.app:main"
 
 [project.optional-dependencies]
+sensors = [
+    "numba>=0.59",
+    "numpy>=1.26",
+    "pandas>=2.0",
+    "scipy>=1.11",
+]
+
+images = [
+    "numpy>=1.26",
+    "opencv-python",
+    "pandas>=2.0",
+    "tqdm>=4.64",
+]
+
+ctd = [
+    "pandas>=2.0",
+]
+
+abundance = [
+    "numba>=0.59",
+    "numpy>=1.26",
+    "pandas>=2.0",
+    "scipy>=1.11",
+]
+
+pipeline = [
+    "numba>=0.59",
+    "numpy>=1.26",
+    "opencv-python",
+    "pandas>=2.0",
+    "scipy>=1.11",
+    "tqdm>=4.64",
+]
+
+legacy-tator = [
+    "tator",
+]
+
 dev = [
-    "jupyter>=1",
-    "ipykernel>=6.29",
-    "pytest>=8",
-]
-
-server = [
-    "gunicorn>=21; platform_system != 'Windows'",
-]
-
-shadowgraph = [
-    "opencv-python",
-    "tator",
-]
-
-all = [
-    "gunicorn>=21; platform_system != 'Windows'",
     "ipykernel>=6.29",
     "jupyter>=1",
+    "numba>=0.59",
+    "numpy>=1.26",
     "opencv-python",
+    "pandas>=2.0",
     "pytest>=8",
-    "tator",
+    "scipy>=1.11",
+    "tqdm>=4.64",
 ]
 
 [tool.setuptools]
 include-package-data = true
 packages = [
-    "ctdtools",
     "stingray",
     "stingray.cli",
     "stingray.config",
+    "stingray.ctd",
     "stingray.images",
     "stingray.io",
     "stingray.logging",
@@ -87,19 +103,12 @@ packages = [
     "stingray.sensors",
     "stingray.stats",
     "stingray.utils",
-    "stingray_dashboard",
 ]
 
 [tool.setuptools.package-dir]
-ctdtools = "packages/ctdtools/src/ctdtools"
 stingray = "packages/stingraytools/src/stingray"
-stingray_dashboard = "packages/stingray-dashboard/src/stingray_dashboard"
 
 [tool.setuptools.package-data]
 stingray = [
-    "data_reference/*",
-]
-stingray_dashboard = [
-    "assets/*",
     "data_reference/*",
 ]

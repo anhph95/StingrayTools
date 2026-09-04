@@ -1,8 +1,16 @@
-import os, sys, shutil, argparse, logging, hashlib, pandas as pd, numpy as np
+import argparse
+import hashlib
+import logging
+import os
+import shutil
+import sys
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from collections import defaultdict, Counter
+from collections import defaultdict
 from pathlib import Path
+
+import numpy as np
+import pandas as pd
 
 from stingray.logging.setup import log_command_options, setup_logging
 
@@ -12,6 +20,8 @@ except ImportError:
     tqdm = None
 
 log = logging.getLogger(__name__)
+SLURM_CPUS = int(os.getenv("SLURM_CPUS_PER_TASK", os.cpu_count() or 1))
+DEFAULT_NUM_WORKERS = max(1, SLURM_CPUS - 1 if SLURM_CPUS > 1 else 1)
 
 
 def warn(message):
@@ -21,23 +31,44 @@ def warn(message):
 # Parse arguments
 # ===============================
 def parse_args(argv=None):
-    p = argparse.ArgumentParser(description="Prepare YOLO training data from Tator annotations.")
-    p.add_argument("--in_dir", type=str, nargs="+", required=True, help="Multiple input directories")
-    p.add_argument("--img_dim", type=int, nargs=2, default=[2330, 1750], help="Image width height")
-    p.add_argument("--out_dir", type=str, default="yolo_training_data")
-    p.add_argument("--random_state", type=int, default=42)
-    p.add_argument("--val_ratio", type=float, default=0.15)
-    p.add_argument("--min_val_per_class", type=int, default=5)
-    p.add_argument("--area", type=float, default=700)
+    p = argparse.ArgumentParser(
+        description="Prepare YOLO training data from Tator annotations.",
+        epilog=(
+            "Template image dimensions: --img-dim 2330 1750. "
+            "For Slurm, use --no-confirm --no-date-suffix and pass an exact --out-dir."
+        ),
+    )
+    p.add_argument("--in-dir", dest="in_dir", type=str, nargs="+", required=True, help="Multiple input directories")
+    p.add_argument("--img-dim", dest="img_dim", type=int, nargs=2, required=True, help="Image width height")
+    p.add_argument("--out-dir", dest="out_dir", type=str, required=True)
+    p.add_argument(
+        "--no-date-suffix",
+        action="store_true",
+        help="Use --out-dir exactly instead of appending today's date.",
+    )
+    p.add_argument("--random-state", dest="random_state", type=int, required=True)
+    p.add_argument("--val-ratio", dest="val_ratio", type=float, required=True)
+    p.add_argument("--min-val-per-class", dest="min_val_per_class", type=int, required=True)
+    p.add_argument("--area", type=float, required=True)
     p.add_argument("--overwrite", action="store_true")
     p.add_argument("--extensions", type=str, nargs="+", default=[".png"])
-    p.add_argument("--num_workers", type=int, default=max(1, os.cpu_count()-1))
+    p.add_argument("--num-workers", dest="num_workers", type=int, default=DEFAULT_NUM_WORKERS)
     p.add_argument("--verbose", action="store_true")
-    p.add_argument("--save_yaml", action="store_true")
+    p.add_argument("--save-yaml", dest="save_yaml", action="store_true")
+    p.add_argument(
+        "--no-confirm",
+        action="store_true",
+        help="Skip the interactive confirmation prompt for batch or Slurm runs.",
+    )
     p.add_argument(
         "--work-dir",
         default=".",
         help="Workspace whose logs directory receives command logs.",
+    )
+    p.add_argument(
+        "--no-file-log",
+        action="store_true",
+        help="Disable Stingray log files and write logs only to the console.",
     )
     return p.parse_args(argv)
 
@@ -55,13 +86,12 @@ def load_and_merge(csv_name, in_dirs, header="infer"):
         else:
             warn(f"{csv_name} missing in {d}")
     if not dfs:
-        log.error(f"Required CSV {csv_name} missing in ALL folders")
-        sys.exit(1)
+        raise FileNotFoundError(f"Required CSV {csv_name} missing in all input folders")
 
     merged = pd.concat(dfs, ignore_index=True)
     before = len(merged)
     merged = merged.drop_duplicates(keep="last").reset_index(drop=True)
-    log.info(f"{csv_name}: merged {before} → {len(merged)} rows")
+    log.info(f"{csv_name}: merged {before} -> {len(merged)} rows")
     return merged
 
 # ===============================
@@ -194,18 +224,22 @@ def main(argv=None):
     work_dir = Path(args.work_dir).expanduser().resolve()
     setup_logging(
         log_dir=work_dir / "logs",
-        name="stingray_images_generate_training",
+        name="stingray_images_generate_yolo_training",
+        file=not args.no_file_log,
     )
     log_command_options(log, args)
 
-    # output dir with date
-    today = datetime.now().strftime("%Y%m%d")
-    outdir = args.out_dir.rstrip("/") + "_" + today
-    i = 1
-    final_out = outdir
-    while os.path.exists(final_out):
-        final_out = f"{outdir}_{i}"
-        i += 1
+    # Keep dated output directories for manual runs unless batch mode asks for an exact path.
+    if args.no_date_suffix:
+        final_out = args.out_dir.rstrip("/")
+    else:
+        today = datetime.now().strftime("%Y%m%d")
+        outdir = args.out_dir.rstrip("/") + "_" + today
+        i = 1
+        final_out = outdir
+        while os.path.exists(final_out):
+            final_out = f"{outdir}_{i}"
+            i += 1
     args.out_dir = final_out
     log.info(f"Output directory: {args.out_dir}")
 
@@ -286,11 +320,12 @@ def main(argv=None):
         'Validation %': '{:.2%}'.format
     }))
 
-    # confirm
-    ans = input("Continue? (y/n): ").lower().strip()
-    if ans!="y":
-        log.info("Cancelled")
-        sys.exit(0)
+    # Require manual confirmation unless the caller explicitly opts into batch mode.
+    if not args.no_confirm:
+        ans = input("Continue? (y/n): ").lower().strip()
+        if ans!="y":
+            log.info("Cancelled")
+            sys.exit(0)
 
     # create dirs
     for s in ["train","val"]:

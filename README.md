@@ -3,24 +3,49 @@
 StingrayTools is a collection of installable tools for processing, organizing,
 and visualizing NES-LTER Stingray / ISIIS sensor and imaging data.
 
-The repository contains three user-facing packages:
+The repository contains two user-facing packages:
 
-- [stingraytools](packages/stingraytools/README.md) processes Stingray sensor and image metadata and produces dashboard-ready data.
-- [ctdtools](packages/ctdtools/README.md) downloads NES-LTER CTD cruise data.
+- [stingraytools](packages/stingraytools/README.md) processes Stingray sensor data, image metadata, YOLO abundance products, and CTD reference data.
 - [stingray-dashboard](packages/stingray-dashboard/README.md) provides interactive exploration and Docker deployment of dashboard datasets.
 
 [![DOI](https://zenodo.org/badge/946902610.svg)](https://doi.org/10.5281/zenodo.15025961)
 
 ## Installation
 
-Install the complete StingrayTools distribution, including the sensor tools,
-CTD tools, and dashboard:
+Install the Stingray sensor-processing dependencies. This also supports image
+abundance, which reuses the sensor gridding and Poisson confidence-interval
+tools:
 
 ```bash
-pip install "git+https://github.com/anhph95/StingrayTools.git"
+pip install "stingraytools[sensors] @ git+https://github.com/anhph95/StingrayTools.git"
 ```
 
-Install only the dashboard:
+Install the Stingray image-metadata and training-data dependencies. Use this for
+frame timestamp/media CSV generation and YOLO training-data preparation:
+
+```bash
+pip install "stingraytools[images] @ git+https://github.com/anhph95/StingrayTools.git"
+```
+
+Install the CTD compilation dependency set:
+
+```bash
+pip install "stingraytools[ctd] @ git+https://github.com/anhph95/StingrayTools.git"
+```
+
+Install the abundance dependency set:
+
+```bash
+pip install "stingraytools[abundance] @ git+https://github.com/anhph95/StingrayTools.git"
+```
+
+Install the complete Stingray CLI dependency set:
+
+```bash
+pip install "stingraytools[pipeline] @ git+https://github.com/anhph95/StingrayTools.git"
+```
+
+Install the dashboard package separately:
 
 ```bash
 pip install "stingray-dashboard @ git+https://github.com/anhph95/StingrayTools.git#subdirectory=packages/stingray-dashboard"
@@ -30,12 +55,6 @@ Install the dashboard with the Gunicorn production-server dependency:
 
 ```bash
 pip install "stingray-dashboard[server] @ git+https://github.com/anhph95/StingrayTools.git#subdirectory=packages/stingray-dashboard"
-```
-
-Install only the CTD downloader:
-
-```bash
-pip install "ctdtools @ git+https://github.com/anhph95/StingrayTools.git#subdirectory=packages/ctdtools"
 ```
 
 ## Docker dashboard install
@@ -91,8 +110,8 @@ workspace and the dashboard is served from Docker.
 python3 -m venv ~/venv/stingray
 source ~/venv/stingray/bin/activate
 
-# Install the processing tools directly from the Git repository.
-pip install "git+https://github.com/anhph95/StingrayTools.git"
+# Install the processing dependencies needed for this workflow.
+pip install "stingraytools[pipeline] @ git+https://github.com/anhph95/StingrayTools.git"
 
 # Enter the mounted shared workspace that contains sensor_data/ and media_list/.
 cd /mnt/stingray_share
@@ -104,6 +123,11 @@ stingray sensors merge \
   --start 2023-08-07 \
   --end 2023-08-14 \
   --cal-year 2021
+
+# Compile CTD reference files into dash_data/data/ctd/ when needed by the dashboard.
+stingray ctd download \
+  --work-dir . \
+  --skip-existing
 
 # Serve the generated dashboard data with the released container image.
 DASH_DATA_DIR=/mnt/stingray_share/dash_data \
@@ -126,7 +150,7 @@ and checking the dashboard before publishing outputs.
 # Activate the WSL2 environment used for StingrayTools development.
 source /home/anhph/venv/stingray/bin/activate
 
-# From a local checkout, install the full repository in editable mode.
+# From a local checkout, install the full Stingray CLI development environment.
 pip install -e ".[dev]"
 
 # Work from the mounted drive or shared workspace that contains runtime data.
@@ -138,6 +162,9 @@ stingray sensors merge \
   --cruise EN706 \
   --start 2023-08-07 \
   --end 2023-08-14
+
+# Install the dashboard package when local dashboard review is needed.
+pip install -e "./packages/stingray-dashboard"
 
 # Run the dashboard locally against the generated files for review.
 stingray-dashboard \

@@ -1,14 +1,40 @@
 # stingraytools
 
-Sensor-processing, image-metadata, CSV I/O, profile, and statistical tools for
-NES-LTER Stingray / ISIIS data.
+Sensor-processing, image-metadata, YOLO abundance, CSV I/O, profile, and
+statistical tools for NES-LTER Stingray / ISIIS data.
 
 ## Installation
 
-Install the complete distribution directly from Git:
+Install the sensor-processing dependencies. This also supports image abundance,
+which reuses the sensor gridding and Poisson confidence-interval tools:
 
 ```bash
-pip install "git+https://github.com/anhph95/StingrayTools.git"
+pip install "stingraytools[sensors] @ git+https://github.com/anhph95/StingrayTools.git"
+```
+
+Install the image-metadata and training-data dependencies. Use this for frame
+timestamp/media CSV generation and YOLO training-data preparation:
+
+```bash
+pip install "stingraytools[images] @ git+https://github.com/anhph95/StingrayTools.git"
+```
+
+Install the CTD compilation dependency set:
+
+```bash
+pip install "stingraytools[ctd] @ git+https://github.com/anhph95/StingrayTools.git"
+```
+
+Install the abundance dependency set:
+
+```bash
+pip install "stingraytools[abundance] @ git+https://github.com/anhph95/StingrayTools.git"
+```
+
+Install the complete Stingray CLI dependency set:
+
+```bash
+pip install "stingraytools[pipeline] @ git+https://github.com/anhph95/StingrayTools.git"
 ```
 
 Confirm that the command-line interface is available:
@@ -54,8 +80,8 @@ Docker dashboard reads those files through a read-only mount.
 python3 -m venv ~/venv/stingray
 source ~/venv/stingray/bin/activate
 
-# Install StingrayTools from Git so the command-line processing tools are available.
-pip install "git+https://github.com/anhph95/StingrayTools.git"
+# Install only the sensor-processing dependencies for this job.
+pip install "stingraytools[sensors] @ git+https://github.com/anhph95/StingrayTools.git"
 
 # Mount the network share using the method appropriate for the host system.
 # This example assumes the share is available at /mnt/stingray_share.
@@ -73,6 +99,11 @@ stingray sensors merge \
   --end 2023-08-14 \
   --cal-year 2021 \
   --time-bin-seconds 5
+
+# Compile CTD reference files into dash_data/data/ctd/ when needed.
+stingray ctd download \
+  --work-dir . \
+  --skip-existing
 
 # Download the release Compose file if it is not already present on the server.
 curl -O https://raw.githubusercontent.com/anhph95/stingraytools/main/compose.ghcr.yml
@@ -104,7 +135,7 @@ same workspace layout as the shipboard deployment.
 # Activate the WSL2 virtual environment used for StingrayTools development.
 source /home/anhph/venv/stingray/bin/activate
 
-# Install the full repository from the local checkout so code edits are live.
+# Install the full Stingray CLI environment from the local checkout so code edits are live.
 cd "/mnt/c/Users/anhph/OneDrive - Woods Hole Oceanographic Institution/stingraytools"
 pip install -e ".[dev]"
 
@@ -118,6 +149,9 @@ stingray sensors merge \
   --start 2023-08-07 \
   --end 2023-08-14 \
   --time-bin-seconds 5
+
+# Install the separate dashboard package when local dashboard review is needed.
+pip install -e "./packages/stingray-dashboard"
 
 # Run the dashboard directly from the Python environment for local inspection.
 stingray-dashboard \
@@ -268,7 +302,7 @@ for cruise in cruises.itertuples():
 continuing with incomplete output. Add `--overwrite-index` to `command` when
 the cached sensor-file indexes must be rebuilt.
 
-## Sensor and image modules
+## Sensor and Image Modules
 
 The distribution includes these processing and metadata modules:
 
@@ -278,19 +312,22 @@ stingray.sensors.fluorometer
 stingray.sensors.par
 stingray.sensors.suna
 stingray.sensors.merge
-stingray.images.frame_timestamp
-stingray.images.get_tator_link
+stingray.images.build_frame_timestamps
 stingray.images.abundance
-stingray.images.generate_training
+stingray.images.generate_yolo_training
+stingray.ctd.download
 ```
 
 Import the relevant functions from Python scripts or notebooks when a workflow
 needs finer control than the command-line interface provides.
+
+`stingray images abundance` depends on the sensor/statistics stack, so install
+`stingraytools[abundance]` for abundance-only batch jobs. `stingray images
+frame-timestamp` and `stingray images generate-training` depend on the image
+stack, so install `stingraytools[images]` for those jobs.
 
 ## Output and related tools
 
 The default merged output is written below
 `WORK_DIR/dash_data/data/stingray/`. It can be explored with the separately
 documented [stingray-dashboard](../stingray-dashboard/README.md).
-
-For the standalone CTD downloader, see [ctdtools](../ctdtools/README.md).

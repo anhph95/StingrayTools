@@ -4,13 +4,13 @@ from __future__ import annotations
 import argparse
 import logging
 import os
+import re
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
-import yaml
 
 from stingray.utils.gridding import assign_time_bins
 from stingray.utils.temporal import convert_timestamp
@@ -19,6 +19,58 @@ from stingray.logging.setup import log_command_options, setup_logging
 
 ORIGIN = datetime(1904, 1, 1)
 logger = logging.getLogger(__name__)
+
+
+def require_columns(df: pd.DataFrame, columns: list[str], source: Path) -> None:
+    missing = [column for column in columns if column not in df.columns]
+    if missing:
+        missing_str = ", ".join(missing)
+        raise ValueError(f"{source} is missing required columns: {missing_str}")
+
+
+def clean_yaml_value(value: str) -> str:
+    value = value.strip()
+    if value.startswith(("'", '"')) and value.endswith(("'", '"')):
+        value = value[1:-1]
+    return value
+
+
+def load_class_names(data_yaml: Path) -> dict[int, str]:
+    """Read the simple YOLO data.yaml names section without requiring PyYAML."""
+    lines = data_yaml.read_text(encoding="utf-8").splitlines()
+    names_started = False
+    names_by_id: dict[int, str] = {}
+    names_list: list[str] = []
+
+    for raw_line in lines:
+        line_without_comment = raw_line.split("#", 1)[0].rstrip()
+        stripped = line_without_comment.strip()
+        if not stripped:
+            continue
+
+        if not names_started:
+            if stripped == "names:":
+                names_started = True
+            continue
+
+        if not raw_line.startswith((" ", "\t", "-")) and stripped != "names:":
+            break
+
+        list_match = re.match(r"^-\s*(.+)$", stripped)
+        if list_match:
+            names_list.append(clean_yaml_value(list_match.group(1)))
+            continue
+
+        dict_match = re.match(r"^(\d+)\s*:\s*(.+)$", stripped)
+        if dict_match:
+            class_id = int(dict_match.group(1))
+            names_by_id[class_id] = clean_yaml_value(dict_match.group(2))
+
+    if names_by_id:
+        return names_by_id
+    if names_list:
+        return dict(enumerate(names_list))
+    raise ValueError(f"{data_yaml} does not contain a supported names section.")
 
 
 @dataclass(frozen=True)
@@ -41,12 +93,22 @@ def process(config: Config) -> pd.DataFrame:
     """Convert YOLO detections into time-binned abundance merged onto sensor data."""
     logger.info("Loading YOLO CSV...")
     df = pd.read_csv(config.yolo_csv, sep=" ")
+    require_columns(
+        df,
+        [
+            "filename",
+            "class_id",
+            "x_center",
+            "y_center",
+            "width",
+            "height",
+            "confidence",
+        ],
+        config.yolo_csv,
+    )
 
     logger.info("Loading class dictionary...")
-    with config.data_yaml.open(encoding="utf-8") as f:
-        names = yaml.safe_load(f)["names"]
-
-    class_dict = dict(enumerate(names)) if isinstance(names, list) else names
+    class_dict = load_class_names(config.data_yaml)
 
     df[["media", "frame"]] = df["filename"].str.extract(r"^(.*)_(\d+)\.txt$")
     df["frame"] = df["frame"].astype(int)
@@ -56,6 +118,9 @@ def process(config: Config) -> pd.DataFrame:
     df["y"] = df["y_center"]
     df["class_idx"] = df["class_id"].astype(int)
     df["class"] = df["class_idx"].map(class_dict)
+    if df["class"].isna().any():
+        missing_ids = sorted(df.loc[df["class"].isna(), "class_idx"].unique())
+        raise ValueError(f"Class IDs missing from data.yaml names section: {missing_ids}")
 
     df["area"] = (
         df["width"]
@@ -93,6 +158,8 @@ def process(config: Config) -> pd.DataFrame:
     logger.info("Loading sensor + media CSVs...")
     sensor_df = pd.read_csv(config.sensor_csv)
     media_df = pd.read_csv(config.media_csv)
+    require_columns(sensor_df, ["times"], config.sensor_csv)
+    require_columns(media_df, ["times", "media", "frame"], config.media_csv)
 
     abundance_df = media_df[["times", "media", "frame"]].merge(
         df_count,
@@ -210,13 +277,23 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default=".",
         help="Workspace whose logs directory receives command logs.",
     )
-    options.add_argument("--score-thresh", type=float, default=0.7)
-    options.add_argument("--bin-width", type=float, default=5.0, help="Time-bin width in seconds")
-    options.add_argument("--image-width", type=int, default=2330)
-    options.add_argument("--image-height", type=int, default=1750)
-    options.add_argument("--um-per-pixel", type=float, default=40.0)
-    options.add_argument("--volume-per-frame", type=float, default=2.25e-3)
+    options.add_argument("--score-thresh", type=float, required=True)
+    options.add_argument(
+        "--bin-width",
+        type=float,
+        required=True,
+        help="Time-bin width in seconds",
+    )
+    options.add_argument("--image-width", type=int, required=True)
+    options.add_argument("--image-height", type=int, required=True)
+    options.add_argument("--um-per-pixel", type=float, required=True)
+    options.add_argument("--volume-per-frame", type=float, required=True)
     options.add_argument("--add-ci", action="store_true", help="Add Poisson confidence intervals")
+    options.add_argument(
+        "--no-file-log",
+        action="store_true",
+        help="Disable Stingray log files and write logs only to the console.",
+    )
 
     return parser.parse_args(argv)
 
@@ -244,6 +321,7 @@ def main(argv: list[str] | None = None) -> None:
     setup_logging(
         log_dir=work_dir / "logs",
         name="stingray_images_abundance",
+        file=not args.no_file_log,
     )
     log_command_options(logger, args)
     config = config_from_args(args)

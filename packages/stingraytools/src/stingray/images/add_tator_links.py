@@ -25,23 +25,33 @@ def normalize_name(name: str) -> str:
 # =======================
 def main(argv=None):
     parser = argparse.ArgumentParser(
-        description="Add Tator annotation links to a precomputed media/frame CSV."
+        description="Add Tator annotation links to a precomputed media/frame CSV.",
+        epilog=(
+            "Template: --host https://stingray.tator.whoi.edu --project-id 1. "
+            "For batch jobs, pass --token from an environment variable."
+        ),
     )
     parser.add_argument("--csv-in", required=True)
     parser.add_argument("--csv-out", required=True)
-    parser.add_argument("--host", default="https://stingray.tator.whoi.edu")
-    parser.add_argument("--project-id", type=int, default=1)
+    parser.add_argument("--host", required=True)
+    parser.add_argument("--project-id", type=int, required=True)
     parser.add_argument("--token", required=True)
     parser.add_argument(
         "--work-dir",
         default=".",
         help="Workspace whose logs directory receives command logs.",
     )
+    parser.add_argument(
+        "--no-file-log",
+        action="store_true",
+        help="Disable Stingray log files and write logs only to the console.",
+    )
     args = parser.parse_args(argv)
     work_dir = Path(args.work_dir).expanduser().resolve()
     setup_logging(
         log_dir=work_dir / "logs",
         name="stingray_images_tator_links",
+        file=not args.no_file_log,
     )
     log_command_options(logger, args)
     t0 = time.time()
@@ -119,6 +129,7 @@ def main(argv=None):
     # Cleanup + write
     # =======================
     df.drop(columns=["media_norm"], inplace=True)
+    Path(args.csv_out).parent.mkdir(parents=True, exist_ok=True)
     log(f"Writing output: {args.csv_out}")
     df.to_csv(args.csv_out, index=False)
     # =======================
