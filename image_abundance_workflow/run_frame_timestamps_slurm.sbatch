@@ -22,12 +22,13 @@ set -euo pipefail
 # Job configuration
 ###############################################################################
 
-PYTHON_BIN="${PYTHON_BIN:-python3}"
+MODULE_NAME="miniconda/25.9"
+PYTHON_BIN="${PYTHON_BIN:-python}"
 STINGRAYTOOLS_GIT_REF="${STINGRAYTOOLS_GIT_REF:-main}"
 INSTALL_ENV="0"  # 1 = reinstall environment from Git; 0 = create if missing, otherwise reuse
 
 WORK_DIR="/proj/nes-lter/Stingray/data"
-VENV_DIR="/proj/nes-lter/Stingray/data/envs/stingraytools-frame-timestamps"
+VENV_DIR=".venv/stingraytools-frame-timestamps"
 CRUISE="CRUISE_ID"
 MEDIA_DIR="CHANGEME_MEDIA_DIR"
 OUT_DIR="/proj/nes-lter/Stingray/data/media_list/CAMERA_STREAM"
@@ -62,6 +63,7 @@ require_dir() {
 }
 
 echo "[INFO] Run inputs:"
+echo "  MODULE_NAME=$MODULE_NAME"
 echo "  PYTHON_BIN=$PYTHON_BIN"
 echo "  STINGRAYTOOLS_GIT_REF=$STINGRAYTOOLS_GIT_REF"
 echo "  INSTALL_ENV=$INSTALL_ENV"
@@ -85,6 +87,10 @@ JOB_TMP="${SLURM_TMPDIR:-${TMPDIR:-/tmp}}"
 MAX_WORKERS="${SLURM_CPUS_PER_TASK:-$(nproc)}"
 
 mkdir -p slogs
+
+if [[ -n "$MODULE_NAME" ]]; then
+    module load "$MODULE_NAME"
+fi
 
 echo "[INFO] Temporary directory: $JOB_TMP"
 echo "[INFO] Virtual environment: $VENV_DIR"

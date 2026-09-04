@@ -20,7 +20,7 @@ CRUISE="CRUISE_ID"
 
 # Some hosts mount this shared storage tree under /srv/vast instead of /mnt/vast.
 WORK_DIR="/mnt/vast/nes-lter/Stingray/data"
-VENV_DIR="/mnt/vast/nes-lter/Stingray/data/envs/stingraytools-image-abundance"
+VENV_DIR=".venv/stingraytools-image-abundance"
 CLASS_YAML="CHANGEME_CLASS_NAMES_YAML"
 SENSOR_CSV="/mnt/vast/nes-lter/Stingray/data/dashboard_data/data/SENSOR_DATASET/DATE_CRUISE.csv"
 MEDIA_CSV="/mnt/vast/nes-lter/Stingray/data/media_list/CAMERA_STREAM/DATE_CRUISE_fast.csv"

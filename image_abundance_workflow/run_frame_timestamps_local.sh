@@ -15,7 +15,7 @@ STINGRAYTOOLS_GIT_REF="${STINGRAYTOOLS_GIT_REF:-main}"
 INSTALL_ENV="0"  # 1 = reinstall environment from Git; 0 = create if missing, otherwise reuse
 
 WORK_DIR="/mnt/vast/nes-lter/Stingray/data"
-VENV_DIR="/mnt/vast/nes-lter/Stingray/data/envs/stingraytools-frame-timestamps"
+VENV_DIR=".venv/stingraytools-frame-timestamps"
 CRUISE="CRUISE_ID"
 MEDIA_DIR="CHANGEME_MEDIA_DIR"
 OUT_DIR="/mnt/vast/nes-lter/Stingray/data/media_list/CAMERA_STREAM"
