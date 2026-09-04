@@ -31,9 +31,9 @@ classifiers = [
 dependencies = []
 
 [project.urls]
-Homepage = "https://github.com/anhph95/StingrayTools"
-Repository = "https://github.com/anhph95/StingrayTools"
-Issues = "https://github.com/anhph95/StingrayTools/issues"
+Homepage = "https://github.com/anhph95/stingraytools"
+Repository = "https://github.com/anhph95/stingraytools"
+Issues = "https://github.com/anhph95/stingraytools/issues"
 
 [project.scripts]
 stingray = "stingray.cli.main:main"

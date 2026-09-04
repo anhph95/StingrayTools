@@ -33,6 +33,7 @@ VIDEO_TYPE_CONFIG = {
     },
 }
 DEFAULT_SUFFIXES = {".avi", ".mp4", ".png", ".tiff"}
+FAST_SAMPLE_COUNT = 5
 # Prevent thread oversubscription inside OpenCV / BLAS
 os.environ.setdefault("OMP_NUM_THREADS", "1")
 os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
@@ -134,42 +135,76 @@ def build_base_dataframe(media_dir, max_workers, suffixes=None, file_limit=None)
         )
     df = pd.DataFrame(file_list_with_sizes, columns=["media_path", "media_size"])
     df["media"] = df["media_path"].apply(lambda x: Path(x).stem)
+    df["suffix"] = df["media_path"].apply(lambda x: Path(x).suffix.lower())
     df["media_time"] = df["media"].apply(parse_media_time)
     return df
+
+
+def sample_group_paths(group, sample_count=FAST_SAMPLE_COUNT):
+    group = group.sort_values(["media_time", "media_path"], na_position="last")
+    n = len(group)
+    if n <= sample_count:
+        return group["media_path"].tolist()
+    if sample_count == 1:
+        positions = [0]
+    else:
+        positions = [
+            round(i * (n - 1) / (sample_count - 1))
+            for i in range(sample_count)
+        ]
+    positions = sorted(set(positions))
+    return group.iloc[positions]["media_path"].tolist()
+
+
 def assign_frame_counts_fast(df, max_workers):
     df = df.copy()
-    valid_sizes = df["media_size"].dropna()
-    if valid_sizes.empty:
+    valid_mask = df["media_size"].notna()
+    if not valid_mask.any():
         log("No valid file sizes found.")
         df["frame_count"] = None
         return df
-    standard_size = valid_sizes.mode().iloc[0]
-    ref_candidates = df.loc[df["media_size"] == standard_size, "media_path"]
-    if ref_candidates.empty:
-        log("No reference file found for modal file size.")
-        df["frame_count"] = None
-        return df
-    reference_file = ref_candidates.iloc[0]
-    log(f"Fast mode modal file size: {standard_size}")
-    log(f"Reference file: {reference_file}")
-    reference_count = get_frame_count(reference_file)
-    log(f"Reference frame count: {reference_count}")
-    df["frame_count"] = reference_count
-    odd_mask = df["media_size"] != standard_size
-    odd_files = df.loc[odd_mask, "media_path"].tolist()
-    log(f"Odd-sized files requiring frame count check: {len(odd_files):,}")
-    odd_workers = max(1, min(4, max_workers))
-    if odd_files:
-        log(f"Thread workers for odd-file frame count step: {odd_workers}")
-        with ThreadPoolExecutor(max_workers=odd_workers) as executor:
+
+    df["frame_count"] = None
+    groups = list(df.loc[valid_mask].groupby(["suffix", "media_size"], dropna=False))
+    log(f"Fast mode file-size groups: {len(groups):,}")
+
+    for (suffix, media_size), group in groups:
+        group_index = group.index
+        sample_paths = sample_group_paths(group)
+        log(
+            f"Group suffix={suffix} size={media_size} files={len(group):,} "
+            f"samples={len(sample_paths)}"
+        )
+        sample_counts = [get_frame_count(path) for path in sample_paths]
+        valid_counts = [count for count in sample_counts if count is not None]
+        unique_counts = sorted(set(valid_counts))
+
+        if len(unique_counts) == 1 and len(valid_counts) == len(sample_counts):
+            frame_count = unique_counts[0]
+            df.loc[group_index, "frame_count"] = frame_count
+            log(
+                f"Assigned frame_count={frame_count} to "
+                f"{len(group):,} files in group."
+            )
+            continue
+
+        log(
+            f"Measuring all files in group; sampled frame counts: "
+            f"{sample_counts}"
+        )
+        workers = max(1, min(max_workers, len(group)))
+        with ThreadPoolExecutor(max_workers=workers) as executor:
             results = list(
                 tqdm(
-                    executor.map(get_frame_count, odd_files),
-                    total=len(odd_files),
-                    desc="Odd file frames",
+                    executor.map(get_frame_count, group["media_path"].tolist()),
+                    total=len(group),
+                    desc=f"Frames {suffix} {media_size}",
                 )
             )
-        df.loc[odd_mask, "frame_count"] = results
+        df.loc[group_index, "frame_count"] = results
+        count_summary = pd.Series(results).value_counts(dropna=False).to_dict()
+        log(f"Measured group frame counts: {count_summary}")
+
     missing_counts = int(df["frame_count"].isna().sum())
     if missing_counts:
         log(f"Files with missing frame_count: {missing_counts:,}")

@@ -9,32 +9,32 @@ Install the sensor-processing dependencies. This also supports image abundance,
 which reuses the sensor gridding and Poisson confidence-interval tools:
 
 ```bash
-pip install "stingraytools[sensors] @ git+https://github.com/anhph95/StingrayTools.git"
+pip install "stingraytools[sensors] @ git+https://github.com/anhph95/stingraytools.git"
 ```
 
 Install the image-metadata and training-data dependencies. Use this for frame
 timestamp/media CSV generation and YOLO training-data preparation:
 
 ```bash
-pip install "stingraytools[images] @ git+https://github.com/anhph95/StingrayTools.git"
+pip install "stingraytools[images] @ git+https://github.com/anhph95/stingraytools.git"
 ```
 
 Install the CTD compilation dependency set:
 
 ```bash
-pip install "stingraytools[ctd] @ git+https://github.com/anhph95/StingrayTools.git"
+pip install "stingraytools[ctd] @ git+https://github.com/anhph95/stingraytools.git"
 ```
 
 Install the abundance dependency set:
 
 ```bash
-pip install "stingraytools[abundance] @ git+https://github.com/anhph95/StingrayTools.git"
+pip install "stingraytools[abundance] @ git+https://github.com/anhph95/stingraytools.git"
 ```
 
 Install the complete Stingray CLI dependency set:
 
 ```bash
-pip install "stingraytools[pipeline] @ git+https://github.com/anhph95/StingrayTools.git"
+pip install "stingraytools[pipeline] @ git+https://github.com/anhph95/stingraytools.git"
 ```
 
 Confirm that the command-line interface is available:
@@ -80,7 +80,7 @@ python3 -m venv ~/venv/stingray
 source ~/venv/stingray/bin/activate
 
 # Install only the sensor-processing dependencies for this job.
-pip install "stingraytools[sensors] @ git+https://github.com/anhph95/StingrayTools.git"
+pip install "stingraytools[sensors] @ git+https://github.com/anhph95/stingraytools.git"
 
 # Mount the network share using the method appropriate for the host system.
 # This example assumes the share is available at /mnt/stingray_share.
