@@ -1,10 +1,6 @@
 #!/usr/bin/env bash
 ###############################################################################
 # Run YOLO label merging and image abundance on a local machine or HPC node.
-#
-# This runner uses the same workflow as run_slurm.sbatch. It is suitable for
-# local testing, login-node dry runs on small data, or external orchestration
-# tools such as Prefect that manage scheduling separately.
 ###############################################################################
 
 set -euo pipefail

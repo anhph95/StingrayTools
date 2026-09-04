@@ -45,8 +45,7 @@ stingray --help
 
 ## Processing workspace
 
-The tools operate on a data workspace, so the source repository does not need
-to be cloned. Create or enter a workspace containing the cruise data:
+The tools operate on a data workspace containing cruise data:
 
 ```bash
 mkdir stingray_workspace
@@ -122,8 +121,8 @@ STINGRAY_DEFAULT_DATASET=stingray \
 The dashboard container does not write into `dash_data/`. Re-run
 `stingray sensors merge` when new cruise data arrive, then refresh the dashboard
 file list or restart the container if the deployment policy prefers restarts.
-Building a dashboard image locally is reserved for application development;
-shipboard and server deployments should use the released GHCR image.
+Local dashboard image builds use the source checkout. Shipboard and server
+deployments use the released GHCR image.
 
 ## Example: WSL2 development and local dashboard checks
 

@@ -1,11 +1,8 @@
 # YOLO Abundance Workflow
 
-This folder is a standalone workflow for turning YOLO label `.txt` files into
-time-binned shadowgraph abundance merged onto Stingray sensor data.
-
-It is intentionally kept outside the Python package. The folder can be copied,
-cloned, or called by an external scheduler while the Python processing command
-is installed from the StingrayTools package.
+This workflow merges YOLO label `.txt` files, builds optional media/frame
+timestamp CSVs, and computes time-binned shadowgraph abundance from Stingray
+sensor data.
 
 ## Files
 
@@ -70,14 +67,11 @@ then submit the abundance workflow:
 sbatch yolo_abundance_workflow/run_slurm.sbatch
 ```
 
-## External Orchestrators
+## Command Steps
 
-Tools such as Prefect can call the helper scripts directly:
+The workflow runners call these processing steps:
 
 ```bash
 bash yolo_abundance_workflow/merge_yolo_labels.sh ...
 stingray images abundance ...
 ```
-
-Keep paths, thresholds, bin width, image dimensions, and volume settings in the
-orchestrator or runner script so the helper scripts stay reusable.
