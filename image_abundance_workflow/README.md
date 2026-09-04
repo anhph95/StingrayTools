@@ -6,6 +6,39 @@ sensor data. The included merge helper reads space-separated `.txt` label
 files; other ML pipelines can provide the same detection and class-map tables
 directly.
 
+## Start Here
+
+Copy only the workflow files into a working directory:
+
+```bash
+curl -L \
+  https://github.com/anhph95/stingraytools/archive/refs/heads/main.tar.gz \
+  -o stingraytools-main.tar.gz
+mkdir -p image_abundance_workflow
+tar -xzf stingraytools-main.tar.gz \
+  --strip-components=2 \
+  -C image_abundance_workflow \
+  stingraytools-main/image_abundance_workflow
+rm stingraytools-main.tar.gz
+cd image_abundance_workflow
+
+# Load a Python 3.10+ module before creating the environment.
+module load miniconda/25.9
+python -m venv .venv/stingraytools-image-abundance
+source .venv/stingraytools-image-abundance/bin/activate
+python --version
+python -m pip install --upgrade pip setuptools wheel
+python -m pip install --upgrade "stingraytools[pipeline] @ git+https://github.com/anhph95/stingraytools.git"
+```
+
+Edit `run_slurm.sbatch` before submitting. Set `VENV_DIR` to
+`.venv/stingraytools-image-abundance` and leave `INSTALL_ENV="0"` for normal
+runs. Repeat the copy commands from the parent working directory to update the
+workflow files.
+
+Set `INSTALL_ENV="1"` only when the environment should be rebuilt from Git
+during the submitted job.
+
 ## Files
 
 - `merge_detection_labels.sh` scans label directories and writes one detection
@@ -20,30 +53,12 @@ directly.
 
 ## Dependencies
 
-Use a virtual environment inside the workflow folder for routine local and
-Slurm runs. Create it once on the host that will run the workflow:
-
-```bash
-# Load the site Python or Miniconda module first when the HPC requires one.
-cd image_abundance_workflow
-python -m venv .venv
-source .venv/bin/activate
-python -m pip install --upgrade pip setuptools wheel
-python -m pip install --upgrade "stingraytools[pipeline] @ git+https://github.com/anhph95/stingraytools.git"
-```
-
-Set `VENV_DIR` in `run_local.sh` or `run_slurm.sbatch` to
-`image_abundance_workflow/.venv` and leave `INSTALL_ENV="0"` for normal runs.
-Set `INSTALL_ENV="1"` only when the environment should be rebuilt from Git
-during the submitted job.
-
 For media/frame timestamp jobs that do not compute abundance, the smaller image
 dependency set is enough:
 
 ```bash
-cd image_abundance_workflow
-python -m venv .venv
-source .venv/bin/activate
+python -m venv .venv/stingraytools-frame-timestamps
+source .venv/stingraytools-frame-timestamps/bin/activate
 python -m pip install --upgrade pip setuptools wheel
 python -m pip install --upgrade "stingraytools[images] @ git+https://github.com/anhph95/stingraytools.git"
 ```
@@ -92,40 +107,18 @@ If `MERGE_LABELS="1"`, the runner builds both tables from `LABEL_DIRS` and
 When `CLASS_MAP_CSV` is missing, the runner creates it from `CLASS_YAML` before
 computing abundance.
 
-## Get Workflow Files
-
-Download only the workflow folder into a working directory:
-
-```bash
-mkdir -p image_abundance_workflow
-curl -L https://github.com/anhph95/stingraytools/archive/refs/heads/main.tar.gz \
-  | tar -xz --strip-components=2 -C image_abundance_workflow \
-      stingraytools-main/image_abundance_workflow
-```
-
-This creates a local `image_abundance_workflow/` folder containing the runner
-scripts. The workflow virtual environment can be created inside this folder
-because the folder is used as a runtime copy, not as a source checkout for
-committing changes.
-
-Run commands from the parent working directory:
-
-```bash
-sbatch image_abundance_workflow/run_slurm.sbatch
-```
-
 ## Local Run
 
 Edit the configuration block in `run_local.sh`, then run:
 
 ```bash
-bash image_abundance_workflow/run_local.sh
+bash run_local.sh
 ```
 
 For media CSV generation only:
 
 ```bash
-bash image_abundance_workflow/run_frame_timestamps_local.sh
+bash run_frame_timestamps_local.sh
 ```
 
 ## Slurm Run
@@ -134,13 +127,13 @@ Edit the configuration block and `#SBATCH` resources in `run_slurm.sbatch`,
 then submit:
 
 ```bash
-sbatch image_abundance_workflow/run_slurm.sbatch
+sbatch run_slurm.sbatch
 ```
 
 For media CSV generation only:
 
 ```bash
-sbatch image_abundance_workflow/run_frame_timestamps_slurm.sbatch
+sbatch run_frame_timestamps_slurm.sbatch
 ```
 
 ## Command Steps
@@ -149,6 +142,6 @@ The workflow runners call these processing steps:
 
 ```bash
 stingray images frame-timestamp ...
-bash image_abundance_workflow/merge_detection_labels.sh ...
+bash merge_detection_labels.sh ...
 stingray images abundance ...
 ```
