@@ -47,9 +47,11 @@ sensors = [
 ]
 
 images = [
+    "numba>=0.59",
     "numpy>=1.26",
     "opencv-python",
     "pandas>=2.0",
+    "scipy>=1.11",
     "tqdm>=4.64",
 ]
 

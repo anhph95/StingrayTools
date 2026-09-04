@@ -13,10 +13,17 @@
 # Run post-inference image abundance processing in one Slurm job.
 ###############################################################################
 
-set -euo pipefail
-
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-MERGE_SCRIPT="${MERGE_SCRIPT:-$SCRIPT_DIR/merge_detection_labels.sh}"
+
+echo "Job ID: $SLURM_JOB_ID, JobName: $SLURM_JOB_NAME"
+hostname
+pwd
+date
+module purge
+module load miniconda/25.9
+source "$SCRIPT_DIR/.venv/stingraytools-image-abundance/bin/activate"
+echo "Environment loaded"
+set -euxo pipefail
 
 ###############################################################################
 # Job configuration
@@ -24,16 +31,10 @@ MERGE_SCRIPT="${MERGE_SCRIPT:-$SCRIPT_DIR/merge_detection_labels.sh}"
 # Edit this block for each run.
 ###############################################################################
 
-MODULE_NAME="miniconda/25.9"
-PYTHON_BIN="${PYTHON_BIN:-python}"
-STINGRAYTOOLS_GIT_REF="${STINGRAYTOOLS_GIT_REF:-main}"
-INSTALL_ENV="0"  # 1 = reinstall environment from Git; 0 = create if missing, otherwise reuse
-
 CRUISE="CRUISE_ID"
 
 # Some hosts mount this shared storage tree under /srv/vast instead of /proj.
 WORK_DIR="/proj/nes-lter/Stingray/data"
-VENV_DIR=".venv/stingraytools-image-abundance"
 CLASS_YAML="CHANGEME_CLASS_NAMES_YAML"
 SENSOR_CSV="/proj/nes-lter/Stingray/data/dashboard_data/data/SENSOR_DATASET/DATE_CRUISE.csv"
 MEDIA_CSV="/proj/nes-lter/Stingray/data/media_list/CAMERA_STREAM/DATE_CRUISE_fast.csv"
@@ -95,13 +96,8 @@ require_dir() {
 }
 
 echo "[INFO] Run inputs:"
-echo "  MODULE_NAME=$MODULE_NAME"
-echo "  PYTHON_BIN=$PYTHON_BIN"
-echo "  STINGRAYTOOLS_GIT_REF=$STINGRAYTOOLS_GIT_REF"
-echo "  INSTALL_ENV=$INSTALL_ENV"
 echo "  CRUISE=$CRUISE"
 echo "  WORK_DIR=$WORK_DIR"
-echo "  VENV_DIR=$VENV_DIR"
 echo "  CLASS_YAML=$CLASS_YAML"
 echo "  SENSOR_CSV=$SENSOR_CSV"
 echo "  MEDIA_CSV=$MEDIA_CSV"
@@ -125,7 +121,6 @@ echo "  LABEL_DIRS=${LABEL_DIRS[*]}"
 require_dir "WORK_DIR" "$WORK_DIR"
 require_file "CLASS_YAML" "$CLASS_YAML"
 require_file "SENSOR_CSV" "$SENSOR_CSV"
-require_file "MERGE_SCRIPT" "$MERGE_SCRIPT"
 require_value "MEDIA_CSV" "$MEDIA_CSV"
 require_value "DETECTIONS_CSV" "$DETECTIONS_CSV"
 require_value "CLASS_MAP_CSV" "$CLASS_MAP_CSV"
@@ -158,26 +153,9 @@ JOBS="${SLURM_CPUS_PER_TASK:-$(nproc)}"
 
 mkdir -p slogs
 
-if [[ -n "$MODULE_NAME" ]]; then
-    module load "$MODULE_NAME"
-fi
-
 echo "[INFO] Workflow directory: $SCRIPT_DIR"
-echo "[INFO] Merge script: $MERGE_SCRIPT"
 echo "[INFO] Temporary directory: $JOB_TMP"
-echo "[INFO] Virtual environment: $VENV_DIR"
-
-if [[ ! -d "$VENV_DIR" || "$INSTALL_ENV" == "1" ]]; then
-    echo "[INFO] Installing stingraytools[pipeline] from Git ref: $STINGRAYTOOLS_GIT_REF"
-    mkdir -p "$(dirname "$VENV_DIR")"
-    "$PYTHON_BIN" -m venv "$VENV_DIR"
-    source "$VENV_DIR/bin/activate"
-    python -m pip install --upgrade pip setuptools wheel
-    python -m pip install --upgrade "stingraytools[pipeline] @ git+https://github.com/anhph95/stingraytools.git@$STINGRAYTOOLS_GIT_REF"
-else
-    echo "[INFO] Reusing existing environment: $VENV_DIR"
-    source "$VENV_DIR/bin/activate"
-fi
+echo "[INFO] Virtual environment: $SCRIPT_DIR/.venv/stingraytools-image-abundance"
 
 echo "[INFO] Python executable: $(command -v python)"
 python --version
@@ -211,7 +189,7 @@ require_file "MEDIA_CSV" "$MEDIA_CSV"
 
 if [[ "$MERGE_LABELS" == "1" ]]; then
     echo "[INFO] Merging detection labels."
-    bash "$MERGE_SCRIPT" \
+    bash "$SCRIPT_DIR/merge_detection_labels.sh" \
         --output-csv "$DETECTIONS_CSV" \
         --class-map-csv "$CLASS_MAP_CSV" \
         --class-yaml "$CLASS_YAML" \

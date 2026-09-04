@@ -6,9 +6,10 @@ sensor data. The included merge helper reads space-separated `.txt` label
 files; other ML pipelines can provide the same detection and class-map tables
 directly.
 
-## Start Here
+## Setup
 
-Copy only the workflow files into a working directory:
+Create a working directory with only the workflow files, then create the Python
+environment used by the local and Slurm runners:
 
 ```bash
 curl -L \
@@ -22,22 +23,16 @@ tar -xzf stingraytools-main.tar.gz \
 rm stingraytools-main.tar.gz
 cd image_abundance_workflow
 
-# Load a Python 3.10+ module before creating the environment.
 module load miniconda/25.9
 python -m venv .venv/stingraytools-image-abundance
 source .venv/stingraytools-image-abundance/bin/activate
 python --version
 python -m pip install --upgrade pip setuptools wheel
-python -m pip install --upgrade "stingraytools[pipeline] @ git+https://github.com/anhph95/stingraytools.git"
+python -m pip install --upgrade "stingraytools[images] @ git+https://github.com/anhph95/stingraytools.git"
 ```
 
-Edit `run_slurm.sbatch` before submitting. Set `VENV_DIR` to
-`.venv/stingraytools-image-abundance` and leave `INSTALL_ENV="0"` for normal
-runs. Repeat the copy commands from the parent working directory to update the
-workflow files.
-
-Set `INSTALL_ENV="1"` only when the environment should be rebuilt from Git
-during the submitted job.
+Run the setup block again when the workflow files or package installation should
+be refreshed from Git.
 
 ## Files
 
@@ -51,21 +46,11 @@ during the submitted job.
 - `run_frame_timestamps_slurm.sbatch` builds only the media/frame timestamp CSV
   as one Slurm job.
 
-## Dependencies
+## Environment
 
-For media/frame timestamp jobs that do not compute abundance, the smaller image
-dependency set is enough:
-
-```bash
-python -m venv .venv/stingraytools-frame-timestamps
-source .venv/stingraytools-frame-timestamps/bin/activate
-python -m pip install --upgrade pip setuptools wheel
-python -m pip install --upgrade "stingraytools[images] @ git+https://github.com/anhph95/stingraytools.git"
-```
-
-The abundance environment provides `stingray images frame-timestamp` and
-`stingray images abundance`. The frame timestamp environment provides OpenCV for
-inspecting image/video files and writing the media CSV used by abundance.
+The workflow uses `.venv/stingraytools-image-abundance` for timestamp, merge,
+and abundance commands. The `stingraytools[images]` dependency set includes
+OpenCV for media inspection and the scientific dependencies used by abundance.
 
 ## Data Paths
 

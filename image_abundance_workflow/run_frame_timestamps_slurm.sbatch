@@ -11,24 +11,23 @@
 
 ###############################################################################
 # Build the media/frame timestamp CSV needed by abundance.
-#
-# This runner installs the Stingray image dependency set because
-# `stingray images frame-timestamp` uses OpenCV to inspect media files.
 ###############################################################################
 
-set -euo pipefail
+echo "Job ID: $SLURM_JOB_ID, JobName: $SLURM_JOB_NAME"
+hostname
+pwd
+date
+module purge
+module load miniconda/25.9
+source .venv/stingraytools-image-abundance/bin/activate
+echo "Environment loaded"
+set -euxo pipefail
 
 ###############################################################################
 # Job configuration
 ###############################################################################
 
-MODULE_NAME="miniconda/25.9"
-PYTHON_BIN="${PYTHON_BIN:-python}"
-STINGRAYTOOLS_GIT_REF="${STINGRAYTOOLS_GIT_REF:-main}"
-INSTALL_ENV="0"  # 1 = reinstall environment from Git; 0 = create if missing, otherwise reuse
-
 WORK_DIR="/proj/nes-lter/Stingray/data"
-VENV_DIR=".venv/stingraytools-frame-timestamps"
 CRUISE="CRUISE_ID"
 MEDIA_DIR="CHANGEME_MEDIA_DIR"
 OUT_DIR="/proj/nes-lter/Stingray/data/media_list/CAMERA_STREAM"
@@ -63,12 +62,7 @@ require_dir() {
 }
 
 echo "[INFO] Run inputs:"
-echo "  MODULE_NAME=$MODULE_NAME"
-echo "  PYTHON_BIN=$PYTHON_BIN"
-echo "  STINGRAYTOOLS_GIT_REF=$STINGRAYTOOLS_GIT_REF"
-echo "  INSTALL_ENV=$INSTALL_ENV"
 echo "  WORK_DIR=$WORK_DIR"
-echo "  VENV_DIR=$VENV_DIR"
 echo "  CRUISE=$CRUISE"
 echo "  MEDIA_DIR=$MEDIA_DIR"
 echo "  OUT_DIR=$OUT_DIR"
@@ -88,24 +82,8 @@ MAX_WORKERS="${SLURM_CPUS_PER_TASK:-$(nproc)}"
 
 mkdir -p slogs
 
-if [[ -n "$MODULE_NAME" ]]; then
-    module load "$MODULE_NAME"
-fi
-
 echo "[INFO] Temporary directory: $JOB_TMP"
-echo "[INFO] Virtual environment: $VENV_DIR"
-
-if [[ ! -d "$VENV_DIR" || "$INSTALL_ENV" == "1" ]]; then
-    echo "[INFO] Installing stingraytools[images] from Git ref: $STINGRAYTOOLS_GIT_REF"
-    mkdir -p "$(dirname "$VENV_DIR")"
-    "$PYTHON_BIN" -m venv "$VENV_DIR"
-    source "$VENV_DIR/bin/activate"
-    python -m pip install --upgrade pip setuptools wheel
-    python -m pip install --upgrade "stingraytools[images] @ git+https://github.com/anhph95/stingraytools.git@$STINGRAYTOOLS_GIT_REF"
-else
-    echo "[INFO] Reusing existing environment: $VENV_DIR"
-    source "$VENV_DIR/bin/activate"
-fi
+echo "[INFO] Virtual environment: .venv/stingraytools-image-abundance"
 
 echo "[INFO] Python executable: $(command -v python)"
 python --version

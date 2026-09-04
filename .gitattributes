@@ -1,1 +1,4 @@
 .gitignore merge=ours
+.gitattributes text eol=lf
+*.sh text eol=lf
+*.sbatch text eol=lf
