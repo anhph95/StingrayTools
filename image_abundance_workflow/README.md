@@ -20,27 +20,30 @@ directly.
 
 ## Dependencies
 
-Use a prebuilt virtual environment for routine local and Slurm runs. Create it
-once on the host that will run the workflow:
+Use a virtual environment inside the workflow folder for routine local and
+Slurm runs. Create it once on the host that will run the workflow:
 
 ```bash
 # Load the site Python or Miniconda module first when the HPC requires one.
-python -m venv /path/to/venvs/stingraytools-image-abundance
-source /path/to/venvs/stingraytools-image-abundance/bin/activate
+cd image_abundance_workflow
+python -m venv .venv
+source .venv/bin/activate
 python -m pip install --upgrade pip setuptools wheel
 python -m pip install --upgrade "stingraytools[pipeline] @ git+https://github.com/anhph95/stingraytools.git"
 ```
 
-Set `VENV_DIR` in `run_local.sh` or `run_slurm.sbatch` to that environment and
-leave `INSTALL_ENV="0"` for normal runs. Set `INSTALL_ENV="1"` only when the
-environment should be rebuilt from Git during the submitted job.
+Set `VENV_DIR` in `run_local.sh` or `run_slurm.sbatch` to
+`image_abundance_workflow/.venv` and leave `INSTALL_ENV="0"` for normal runs.
+Set `INSTALL_ENV="1"` only when the environment should be rebuilt from Git
+during the submitted job.
 
 For media/frame timestamp jobs that do not compute abundance, the smaller image
 dependency set is enough:
 
 ```bash
-python -m venv /path/to/venvs/stingraytools-frame-timestamps
-source /path/to/venvs/stingraytools-frame-timestamps/bin/activate
+cd image_abundance_workflow
+python -m venv .venv
+source .venv/bin/activate
 python -m pip install --upgrade pip setuptools wheel
 python -m pip install --upgrade "stingraytools[images] @ git+https://github.com/anhph95/stingraytools.git"
 ```
@@ -89,22 +92,26 @@ If `MERGE_LABELS="1"`, the runner builds both tables from `LABEL_DIRS` and
 When `CLASS_MAP_CSV` is missing, the runner creates it from `CLASS_YAML` before
 computing abundance.
 
-## Copy Workflow Files
+## Get Workflow Files
 
-Clone only the workflow folder into a working directory:
+Download only the workflow folder into a working directory:
 
 ```bash
-git clone --filter=blob:none --no-checkout https://github.com/anhph95/stingraytools.git stingraytools-workflows
-cd stingraytools-workflows
-git sparse-checkout init --cone
-git sparse-checkout set image_abundance_workflow
-git checkout main
+mkdir -p image_abundance_workflow
+curl -L https://github.com/anhph95/stingraytools/archive/refs/heads/main.tar.gz \
+  | tar -xz --strip-components=2 -C image_abundance_workflow \
+      stingraytools-main/image_abundance_workflow
 ```
 
-Run commands from the parent working directory or from the sparse checkout:
+This creates a local `image_abundance_workflow/` folder containing the runner
+scripts. The workflow virtual environment can be created inside this folder
+because the folder is used as a runtime copy, not as a source checkout for
+committing changes.
+
+Run commands from the parent working directory:
 
 ```bash
-sbatch stingraytools-workflows/image_abundance_workflow/run_slurm.sbatch
+sbatch image_abundance_workflow/run_slurm.sbatch
 ```
 
 ## Local Run
