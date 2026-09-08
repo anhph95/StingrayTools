@@ -68,3 +68,30 @@ def test_fast_mode_measures_full_group_when_same_size_has_mixed_fps(monkeypatch)
         datetime(2024, 1, 1),
         datetime(2024, 1, 1) + timedelta(seconds=0.5),
     ]
+
+
+def test_empty_video_stays_in_video_list_but_not_frame_list():
+    video_df = pd.DataFrame(
+        [
+            {
+                **_base_frame("/data/empty.avi", media_size=0),
+                "frame_count": 0,
+                "fps": 2.0,
+            },
+            {
+                **_base_frame("/data/valid.avi", media_size=100),
+                "frame_count": 2,
+                "fps": 2.0,
+            },
+        ]
+    )
+
+    video_list = timestamps.prepare_fast_video_list(video_df)
+    frame_list = timestamps.expand_frames(
+        video_list[video_list["status"] == "valid"]
+    )
+
+    statuses = video_list.set_index("media")["status"].to_dict()
+    assert statuses == {"empty": "empty", "valid": "valid"}
+    assert frame_list["media"].tolist() == ["valid", "valid"]
+    assert frame_list["frame"].tolist() == [0, 1]

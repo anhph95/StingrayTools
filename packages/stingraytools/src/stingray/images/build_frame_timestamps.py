@@ -4,6 +4,7 @@ import cv2
 import logging
 import time
 import argparse
+import numpy as np
 import pandas as pd
 from pathlib import Path
 from datetime import datetime, timedelta
@@ -242,6 +243,101 @@ def assign_media_metadata_fast(df, max_workers):
     return df
 
 
+def prepare_fast_video_list(df):
+    """Describe every discovered media file before per-frame expansion."""
+    video_df = df.copy()
+    is_image = video_df["suffix"].isin(IMAGE_SUFFIXES)
+    has_frames = video_df["frame_count"].notna() & (video_df["frame_count"] > 0)
+    has_fps = video_df["fps"].apply(valid_fps)
+
+    video_df["status"] = "valid"
+    video_df["error"] = ""
+
+    unreadable = video_df["frame_count"].isna()
+    empty = video_df["frame_count"].notna() & (video_df["frame_count"] <= 0)
+    invalid_fps = (~is_image) & has_frames & (~has_fps)
+
+    video_df.loc[unreadable, "status"] = "unreadable"
+    video_df.loc[unreadable, "error"] = "Unable to read media metadata"
+    video_df.loc[empty, "status"] = "empty"
+    video_df.loc[empty, "error"] = "No readable frames"
+    video_df.loc[invalid_fps, "status"] = "invalid_fps"
+    video_df.loc[invalid_fps, "error"] = "Missing or invalid video FPS"
+
+    video_df["valid_frame_count"] = video_df["frame_count"].where(
+        video_df["status"] == "valid", 0
+    )
+    video_df["timestamp_mode"] = "fast"
+    video_df = video_df.sort_values(
+        ["media_time", "media_path"], na_position="last"
+    ).reset_index(drop=True)
+    video_df.insert(0, "video_index", np.arange(len(video_df), dtype=int))
+    return video_df
+
+
+def prepare_details_video_list(frame_df):
+    """Summarize detailed frame records without rescanning the media tree."""
+    columns = [
+        "video_index",
+        "media_path",
+        "media_size",
+        "media",
+        "suffix",
+        "media_time",
+        "frame_count",
+        "valid_frame_count",
+        "fps",
+        "status",
+        "error",
+        "timestamp_mode",
+    ]
+    if frame_df.empty:
+        return pd.DataFrame(columns=columns)
+
+    records = []
+    for media_path, group in frame_df.groupby("media_path", sort=False):
+        first = group.iloc[0]
+        statuses = set(group["status"].dropna())
+        frame_count = int(group["frame"].notna().sum())
+        valid_frame_count = int((group["status"] == "ok").sum())
+
+        if "bad_file" in statuses:
+            status = "unreadable"
+            error = "Unable to open media"
+        elif "empty" in statuses:
+            status = "empty"
+            error = "No readable frames"
+        elif "bad_frame" in statuses:
+            status = "partial"
+            error = "One or more frames could not be timestamped"
+        else:
+            status = "valid"
+            error = ""
+
+        records.append(
+            {
+                "media_path": media_path,
+                "media_size": first.get("media_size"),
+                "media": first["media"],
+                "suffix": first.get("suffix", Path(media_path).suffix.lower()),
+                "media_time": first["media_time"],
+                "frame_count": frame_count,
+                "valid_frame_count": valid_frame_count,
+                "fps": first.get("fps"),
+                "status": status,
+                "error": error,
+                "timestamp_mode": "details",
+            }
+        )
+
+    video_df = pd.DataFrame.from_records(records)
+    video_df = video_df.sort_values(
+        ["media_time", "media_path"], na_position="last"
+    ).reset_index(drop=True)
+    video_df.insert(0, "video_index", np.arange(len(video_df), dtype=int))
+    return video_df[columns]
+
+
 def expand_frames(df):
     df = df.copy()
     before_rows = len(df)
@@ -268,25 +364,38 @@ def process_media_details(file_path):
     media_name = Path(file_path).stem
     base_time = parse_media_time(media_name)
     suffix = Path(file_path).suffix.lower()
+    try:
+        media_size = os.stat(file_path).st_size
+    except OSError:
+        media_size = None
     if suffix in {".png", ".tiff", ".tif", ".jpg", ".jpeg"}:
         return [{
             "media_path": file_path,
+            "media_size": media_size,
             "media": media_name,
+            "suffix": suffix,
             "media_time": base_time,
             "frame": 0,
             "times": base_time if pd.notna(base_time) else None,
+            "fps": None,
             "status": "ok",
         }]
     cap = cv2.VideoCapture(file_path)
     if not cap.isOpened():
         return [{
             "media_path": file_path,
+            "media_size": media_size,
             "media": media_name,
+            "suffix": suffix,
             "media_time": base_time,
             "frame": None,
             "times": None,
+            "fps": None,
             "status": "bad_file",
         }]
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    if not valid_fps(fps):
+        fps = None
     records = []
     frame_idx = 0
     while True:
@@ -297,24 +406,42 @@ def process_media_details(file_path):
         if ms <= 0:
             records.append({
                 "media_path": file_path,
+                "media_size": media_size,
                 "media": media_name,
+                "suffix": suffix,
                 "media_time": base_time,
                 "frame": frame_idx,
                 "times": None,
+                "fps": fps,
                 "status": "bad_frame",
             })
         else:
             timestamp = base_time + timedelta(milliseconds=ms) if pd.notna(base_time) else None
             records.append({
                 "media_path": file_path,
+                "media_size": media_size,
                 "media": media_name,
+                "suffix": suffix,
                 "media_time": base_time,
                 "frame": frame_idx,
                 "times": timestamp,
+                "fps": fps,
                 "status": "ok",
             })
         frame_idx += 1
     cap.release()
+    if not records:
+        records.append({
+            "media_path": file_path,
+            "media_size": media_size,
+            "media": media_name,
+            "suffix": suffix,
+            "media_time": base_time,
+            "frame": None,
+            "times": None,
+            "fps": fps,
+            "status": "empty",
+        })
     return records
 def extract_details_dataframe(media_dir, max_workers, suffixes=None, file_limit=None):
     file_paths = list_files(media_dir)
@@ -396,12 +523,14 @@ def main(argv=None):
     allowed_suffixes = normalize_suffixes(args.suffix) if args.suffix else DEFAULT_SUFFIXES
     log(f"Allowed suffixes: {sorted(allowed_suffixes)}")
     if args.details:
-        df_out = extract_details_dataframe(
+        detail_df = extract_details_dataframe(
             media_dir=media_dir,
             max_workers=args.max_workers,
             suffixes=args.suffix,
             file_limit=args.file_limit,
         )
+        video_df = prepare_details_video_list(detail_df)
+        df_out = detail_df[detail_df["status"] == "ok"].copy()
         mode_name = "details"
     else:
         df = build_base_dataframe(
@@ -415,19 +544,34 @@ def main(argv=None):
             return
         log(f"Rows in base dataframe: {len(df):,}")
         df = assign_media_metadata_fast(df, args.max_workers)
-        df_out = expand_frames(df)
+        video_df = prepare_fast_video_list(df)
+        df_out = expand_frames(video_df[video_df["status"] == "valid"])
         mode_name = "fast"
-    if df_out.empty:
-        log(f"No frame data generated for {cruise}")
+
+    if video_df.empty:
+        log(f"No media inventory generated for {cruise}")
         return
-    sort_cols = ["media", "frame"] if "frame" in df_out.columns else ["media"]
-    df_out.sort_values(sort_cols, inplace=True)
+
+    if not df_out.empty:
+        sort_cols = ["media", "frame"] if "frame" in df_out.columns else ["media"]
+        df_out.sort_values(sort_cols, inplace=True)
     valid_times = df_out["times"].dropna() if "times" in df_out.columns else pd.Series(dtype="datetime64[ns]")
-    datestr = valid_times.iloc[0].strftime("%Y%m%d") if not valid_times.empty else cruise
-    out_file = f"{out_dir}/{datestr}_{cruise}_{mode_name}.csv"
-    df_out.to_csv(out_file, index=False)
-    log(f"Saved: {out_file}")
-    log(f"Output rows: {len(df_out):,}")
+    video_times = video_df["media_time"].dropna()
+    if not valid_times.empty:
+        datestr = valid_times.iloc[0].strftime("%Y%m%d")
+    elif not video_times.empty:
+        datestr = video_times.iloc[0].strftime("%Y%m%d")
+    else:
+        datestr = cruise
+
+    video_list_file = f"{out_dir}/{datestr}_{cruise}_video_list_{mode_name}.csv"
+    frame_list_file = f"{out_dir}/{datestr}_{cruise}_frame_list_{mode_name}.csv"
+    video_df.to_csv(video_list_file, index=False)
+    df_out.to_csv(frame_list_file, index=False)
+    log(f"Saved video list: {video_list_file}")
+    log(f"Video rows: {len(video_df):,}")
+    log(f"Saved frame list: {frame_list_file}")
+    log(f"Frame rows: {len(df_out):,}")
     if "status" in df_out.columns:
         log(f"Status counts: {df_out['status'].value_counts(dropna=False).to_dict()}")
     log(f"Elapsed time: {time.time() - t0:.2f}s")

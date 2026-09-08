@@ -29,7 +29,7 @@ raw image or video files
   -> media_list/CAMERA_STREAM/
 
 ML detection label files
-  -> image_abundance_workflow/merge_detection_labels.sh
+  -> image-analysis/merge_detection_labels.sh
   -> stingray images abundance
   -> dashboard_data/data/shadowgraph/
 
@@ -38,8 +38,10 @@ NES-LTER CTD API data
   -> dashboard_data/data/ctd/
 ```
 
-ML inference is run by an external model workflow. This repository provides
-post-inference detection merge and abundance workflows.
+ML inference and post-inference processing are orchestrated by the separate
+[image-analysis](https://github.com/anhph95/image-analysis) workflow repository.
+This repository provides the reusable timestamp and abundance commands used by
+that workflow.
 
 ## Installation
 
@@ -102,11 +104,13 @@ stingray ctd download \
 Run post-inference image abundance processing:
 
 ```bash
-sbatch image_abundance_workflow/run_slurm.sbatch
+git clone https://github.com/anhph95/image-analysis.git
+cd image-analysis
+sbatch run_slurm.sbatch
 ```
 
-Workflow runner details are in
-[image_abundance_workflow/README.md](image_abundance_workflow/README.md).
+Workflow runner details are in the
+[image-analysis repository](https://github.com/anhph95/image-analysis).
 
 ## Development
 
